@@ -1,0 +1,55 @@
+# ===================================================================
+# Archivo .gitignore para el Proyecto COOSALUD EVARISIS del HUV
+# Este archivo le dice a Git qué archivos y carpetas debe ignorar.
+# ===================================================================
+
+# 1. Entornos Virtuales
+# Ignora cualquier carpeta de entorno virtual. Son específicas de cada máquina.
+# La nombras "venv1", pero esto cubrirá los nombres más comunes.
+venv/
+venv0/
+venv1/
+env/
+.venv/
+.env/
+chrome-win64/
+# 2. Caché y archivos generados por Python
+# La carpeta __pycache__ contiene archivos .pyc que son versiones compiladas
+# (bytecode) de tu código. Python los genera automáticamente para acelerar la ejecución.
+__pycache__/
+*.pyc
+
+# 3. Archivos de Compilación y Empaquetado (PyInstaller, etc.)
+# Carpetas y archivos generados al crear un ejecutable (.exe).
+# Estos se reconstruyen desde el código fuente, nunca se suben al repositorio.
+dist/
+build/
+*.spec
+*.pyd
+*.c
+*.zip
+*.rar
+
+
+
+# 4. Archivos específicos de IDEs y Editores de Código
+# Configuraciones personales de tu editor que no deben ser compartidas.
+.idea/
+.vscode/
+*.swp
+
+# 5. Archivos de sistema operativo
+# Archivos basura generados por macOS, Windows o Linux.
+.DS_Store
+Thumbs.db
+
+# 6. Archivos de dependencias y logs
+# Aunque no los mencionaste, es buena práctica ignorar archivos de logs
+# y el archivo que contendría variables de entorno.
+*.log
+.env
+
+# 7. Archivos generados
+#excel/
+#pdfs_patologia/
+~$*
