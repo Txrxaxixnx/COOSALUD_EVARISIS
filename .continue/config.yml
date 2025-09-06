@@ -1,0 +1,37 @@
+# Archivo por proyecto
+# Se activa cuando abres este workspace en VS Code
+models:
+  defaultProvider: "openai"   # ajusta según tu proveedor
+  # puedes definir más modelos/chat/completion si usas alternos
+
+mcpServers:
+  postman:
+    command: "npx"
+    args: ["-y", "@postman/mcp-server@latest"]
+    env: {}
+
+  # Filesystem MCP restringido al directorio del proyecto
+  filesystem:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem"]
+    env: { "MCP_FS_ROOT": "${workspaceFolder}" }
+
+  # Shell MCP (opcional): limitarlo si quieres solo lectura
+  # shell:
+  #   command: "npx"
+  #   args: ["-y", "@modelcontextprotocol/server-shell"]
+  #   env: {}
+
+# Context providers específicos del repo (ejemplos)
+context:
+  - type: "folder"
+    folderPath: "${workspaceFolder}"
+    includeGlobs: ["**/*.py", "**/*.md", "**/*.yaml", "**/*.yml"]
+    excludeGlobs: ["venv0/**", "**/__pycache__/**"]
+
+# Prompts o workflows propios del repo
+prompts:
+  - name: "Auditoría de dependencias"
+    description: "Revisa y sugiere actualizaciones en requirements.txt"
+    prompt: |
+      Analiza el archivo requirements.txt y sugiere versiones estables compatibles con Python 3.11.
