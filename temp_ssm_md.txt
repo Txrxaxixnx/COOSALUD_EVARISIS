@@ -1,0 +1,69 @@
+﻿Â¡Perfecto! He recibido el primer archivo: `server_logic\selenium_session_manager.py`.
+
+Procedo con el anÃ¡lisis, siguiendo estrictamente las pautas acordadas (sin dar soluciones, solo analizando su funciÃ³n y componentes).
+
+---
+
+### **AnÃ¡lisis del Archivo: `selenium_session_manager.py`**
+
+#### **1. PropÃ³sito Principal**
+
+Este script es el motor de la automatizaciÃ³n del navegador. Su responsabilidad principal es iniciar una sesiÃ³n en un sitio web especÃ­fico (`https://vco.ctamedicas.com`), capturar la cookie de sesiÃ³n (`PHPSESSID`), y mantener esa sesiÃ³n activa durante un largo periodo de tiempo (5 horas). AdemÃ¡s, tiene una funciÃ³n secundaria crucial: sincronizar el valor de esta cookie con una pÃ¡gina de Notion para que, presumiblemente, otros procesos o personas puedan utilizarla.
+
+En resumen: **Automatiza el inicio de sesiÃ³n, extrae la cookie, la publica en Notion y mantiene la sesiÃ³n viva refrescando la pÃ¡gina periÃ³dicamente.**
+
+#### **2. Componentes Clave**
+
+El archivo se organiza en torno a una funciÃ³n principal y dos funciones de ayuda para la API de Notion.
+
+*   **Constantes Globales:**
+    *   `USERNAME`, `PASSWORD`, `LOGIN_URL`: Credenciales y URL de destino hardcodeadas (escritas directamente en el cÃ³digo) para el inicio de sesiÃ³n.
+    *   `REFRESH_INTERVAL_SECONDS`, `TOTAL_DURATION_SECONDS`: Configuran el comportamiento del bucle de mantenimiento de la sesiÃ³n (refrescar cada 3 minutos durante un total de 5 horas).
+
+*   **Funciones de Ayuda (Notion):**
+    *   `borrar_session_blocks(headers, page_id)`: Se conecta a la API de Notion y elimina de una pÃ¡gina especÃ­fica cualquier bloque de texto que contenga "Session PHPSESSID:". Es una funciÃ³n de limpieza para evitar tener cookies antiguas.
+    *   `sincronizar_cookie_con_notion(headers, page_id, cookie_value, ...)`: Esta es la funciÃ³n de sincronizaciÃ³n. Primero llama a `borrar_session_blocks` para limpiar. Luego, crea un nuevo bloque de pÃ¡rrafo en la pÃ¡gina de Notion con el valor actual de la cookie y una marca de tiempo (`LastUpdate`).
+
+*   **FunciÃ³n Principal:**
+    *   `capture_sync_and_refresh_session(base_path)`: Es el orquestador de todo el proceso.
+        1.  **Acepta un argumento `base_path`**: Esto indica que el script estÃ¡ diseÃ±ado para ser flexible y no depende de rutas de archivo absolutas. Todas sus dependencias locales (configuraciÃ³n, navegador) se resuelven a partir de esta ruta base.
+        2.  **Carga de ConfiguraciÃ³n**: Lee un archivo `config.ini` (ubicado en `base_path`) para obtener credenciales de la API de Notion. Si no puede leerlo, falla de forma crÃ­tica.
+        3.  **ConfiguraciÃ³n de Selenium**: Prepara y lanza un navegador Chrome. Es importante destacar que lo hace en **modo headless** (`--headless=new`), lo que significa que no se mostrarÃ¡ ninguna ventana de navegador en la pantalla del servidor. Utiliza un navegador y un `chromedriver` que espera encontrar dentro de una carpeta `chrome-win64` en el `base_path`.
+        4.  **Proceso de Login**: Navega a la URL, introduce el usuario y la contraseÃ±a, y hace clic en el botÃ³n de inicio de sesiÃ³n. Espera a que aparezca un elemento con el texto "Bienvenido" para confirmar que el login fue exitoso.
+        5.  **Captura de Cookie**: Una vez logueado, extrae la cookie `PHPSESSID` del navegador.
+        6.  **SincronizaciÃ³n Inicial**: Llama a `sincronizar_cookie_con_notion` por primera vez para publicar la cookie reciÃ©n obtenida.
+        7.  **CreaciÃ³n de SeÃ±al**: Crea un archivo vacÃ­o llamado `.sync_success.flag` en `base_path`. Este archivo actÃºa como una **seÃ±al** para indicar a otras partes del sistema que la sesiÃ³n estÃ¡ lista y la cookie ha sido sincronizada.
+        8.  **Bucle de Mantenimiento**: Entra en un bucle `while` que dura 5 horas. Dentro del bucle, espera 3 minutos, refresca la pÃ¡gina del navegador (`driver.refresh()`) y vuelve a sincronizar la cookie con Notion.
+        9.  **Salida**: Al finalizar el bucle (o si ocurre un error), la funciÃ³n **retorna el objeto `driver` de Selenium**. Esto es clave: el script no cierra el navegador por sÃ­ mismo, sino que delega esa responsabilidad al cÃ³digo que lo llamÃ³.
+
+*   **Bloque de EjecuciÃ³n Directa (`if __name__ == "__main__":`)**
+    *   Este bloque permite ejecutar el script de forma independiente para pruebas. Utiliza `argparse` para poder pasarle la ruta `--base-path` desde la lÃ­nea de comandos, lo cual es una muy buena prÃ¡ctica para la depuraciÃ³n.
+
+#### **3. Dependencias y Conexiones**
+
+*   **LibrerÃ­as Python:** `os`, `sys`, `time`, `datetime`, `requests`, `configparser`, `argparse`, `selenium`.
+*   **Servicios Externos:**
+    *   `https://vco.ctamedicas.com`: El sitio web donde se realiza el login.
+    *   `https://api.notion.com`: La API de Notion para almacenar la cookie.
+*   **Archivos Locales (Necesidades):** El script **requiere** la siguiente estructura de archivos y carpetas relativa a la `base_path` que se le proporciona:
+    *   `./config.ini` (con las claves de Notion)
+    *   `./chrome-win64/chromedriver.exe` (el controlador de Selenium)
+    *   `./chrome-win64/chrome.exe` (el ejecutable del navegador Chrome)
+*   **Archivos Locales (Generados):**
+    *   `./.sync_success.flag` (el archivo de seÃ±al que crea tras el login exitoso).
+
+#### **4. Flujo de LÃ³gica General**
+
+1.  El script se inicia, recibiendo una ruta base.
+2.  Carga la configuraciÃ³n de Notion desde `config.ini`.
+3.  Inicia un navegador Chrome oculto.
+4.  Realiza el login en el sitio web.
+5.  Si el login es exitoso, extrae la cookie `PHPSESSID`.
+6.  Publica la cookie en una pÃ¡gina de Notion.
+7.  Crea el archivo `.sync_success.flag` para avisar que estÃ¡ listo.
+8.  Entra en un ciclo de 5 horas donde cada 3 minutos refresca la pÃ¡gina para mantener la sesiÃ³n activa.
+9.  Una vez terminado el ciclo, devuelve el control del navegador al proceso que lo invocÃ³.
+
+---
+
+AnÃ¡lisis del primer archivo completado. Estoy listo para recibir el siguiente.
