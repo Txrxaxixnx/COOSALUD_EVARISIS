@@ -1,34 +1,33 @@
-﻿## Análisis Global y Estado del Proyecto (06/09/2025)
+## Análisis Global y Estado del Proyecto (06/09/2025)
 
 1) Arquitectura general
 
 - Patrón cliente-servidor desacoplado coordinado por Notion.
   - Servidor: mantiene sesión activa en el sitio (Chrome headless), publica cookie en Notion y la refresca periódicamente.
   - Cliente: consume la cookie publicada para abrir navegador visible ya autenticado y/o automatizar flujos (glosas).
-- GUI central (main_gui.py): orquesta estados, lanza roles y ejecuta flujo de Glosas integrado con Selenium como librería.
+- GUI central (`main_gui.py`): orquesta estados, lanza roles y ejecuta flujo de Glosas integrado con Selenium como librería.
 
 2) Mapa de módulos
 
 - `main_gui.py`: ventana y orquestación; estado de sesión (Notion); flujo de Glosas (búsqueda, paginación, descargas, consolidación, informe ejecutivo); cierre ordenado.
-- `glosas_downloader.py`: API Selenium reusable: `get_session_cookie`, `setup_driver`, `fase_buscar`, `extraer_datos_tabla_actual`, `navegar_pagina`, `cambiar_numero_entradas`, `establecer_contexto_busqueda`, `descargar_item_especifico`.
+- `glosas_downloader.py`: API Selenium reusable: `get_session_cookie`, `setup_driver`, `fase_buscar`, `extraer_datos_tabla_actual`, `navegar_pagina`, `cambiar_numero_entradas`, `establecer_contexto_busqueda`, `descargar_item_especifico`, `fase_descargar` (CLI).
 - `tray_app.py`: app de bandeja que ejecuta la lógica de servidor en un hilo y mantiene vivo el proceso hasta finalizar o salir.
 - `server_logic/selenium_session_manager.py`: login headless, captura de cookie, sincronización con Notion, señal `.sync_success.flag`, bucle de refresco.
 - `session_cliente.py`: abre Chrome visible e inyecta cookie para sesión manual del usuario.
-- `session_cliente2.py`: variante de cliente con pasos guiados (experimental).
 - `notion_control_interno.py`: registra usos diarios por usuario en Notion.
 - `calendario.py`: selector de fechas con festivos y locales.
 
 3) Flujo de datos clave
 
 - Cookie PHPSESSID: capturada por el servidor → publicada en Notion con timestamp (LastUpdate) → consumida por cliente/automatizaciones → la GUI monitorea su vigencia por timestamp.
-- Descargas de Glosas: archivos .xls/.xlsx en `~/Downloads/Glosas_Coosalud` → se organizan en carpeta “Reporte de Glosas YYYY-MM-DD” → consolidado y reporte Excel generados en esa carpeta.
+- Descargas de Glosas: archivos .xls/.xlsx en `~/Downloads/Glosas_Coosalud` → se organizan en carpeta "Reporte de Glosas YYYY-MM-DD" → consolidado y reporte Excel generados en esa carpeta.
 
 4) Modos de ejecución
 
 - GUI (seguro): `python main_gui.py --lanzado-por-evarisis [--nombre ... --cargo ... --tema ...]`
-- Servidor: `python main_gui.py --run-server --base-path=...` (lanza `tray_app.main`)
-- Cliente: `python main_gui.py --run-client --base-path=...` (lanza `session_cliente.run_client_logic`)
-- Glosas (CLI): `python glosas_downloader.py --fase [buscar|descargar] --fecha-ini ... --fecha-fin ... [--items JSON]`
+- Servidor: `python main_gui.py --run-server --base-path=...` (lanza `tray_app.main`).
+- Cliente: `python main_gui.py --run-client --base-path=...` (lanza `session_cliente.run_client_logic`).
+- Glosas (CLI): `python glosas_downloader.py --fase [buscar|descargar] --fecha-ini ... --fecha-fin ... [--items JSON]`.
 
 5) Requisitos y configuración
 
@@ -53,3 +52,4 @@
 8) Anexos
 
 - Ver documentos por módulo en esta carpeta para API detallada y notas específicas.
+

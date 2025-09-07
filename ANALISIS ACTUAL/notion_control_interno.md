@@ -1,8 +1,8 @@
-﻿## Análisis del Archivo: `notion_control_interno.py` (06/09/2025)
+## Análisis del Archivo: `notion_control_interno.py` (06/09/2025)
 
 1) Propósito
 
-- Registrar en Notion, por usuario del sistema y por día, los intentos de uso de la aplicación (p.ej., aberturas de la GUI). Mantiene un bloque marcado con `===REGISTRO DE USUARIOS===` y agrega líneas “1er/2do/3er Intento: HH:MM:SS”.
+- Registrar en Notion, por usuario del sistema y por día, los intentos de uso de la aplicación (p.ej., aberturas de la GUI). Mantiene un bloque marcado con `===REGISTRO DE USUARIOS===` y agrega líneas "1er/2do/3er Intento: HH:MM:SS".
 
 2) Flujo (`registrar_uso(log_callback, base_path)`)
 
@@ -17,3 +17,4 @@
 
 - Resiliencia a formatos: las funciones internas parsean y rearman el texto con espacios en blanco controlados.
 - Permisos: requiere que el token tenga acceso de escritura en la página.
+

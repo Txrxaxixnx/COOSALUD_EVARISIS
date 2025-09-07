@@ -15,13 +15,14 @@
 - `establecer_contexto_busqueda(driver, fecha_ini, fecha_fin)`: Asegura el filtro por fechas y tabla cargada.
 - `descargar_item_especifico(driver, item, download_dir, last_processed_id=None)`: Entra al detalle de la cuenta/factura, presiona los botones “Descargar” y espera correctamente la finalización real de cada descarga (maneja `.crdownload`). Regresa el `id` procesado.
 - `wait_for_new_file_to_download(download_dir, timeout=60)`: Rutina robusta para confirmar fin de descargas (lentas o rápidas).
+- `fase_descargar(driver, items, base_path, fecha_ini, fecha_fin, download_dir)`: Establece contexto por fecha e itera los `items` descargando lo solicitado.
 
 3) Uso por CLI (fases)
 
-- El bloque `__main__` permite ejecutar:
-  - `--fase buscar --fecha-ini=YYYY-MM-DD --fecha-fin=YYYY-MM-DD`: establece contexto y llama `fase_buscar(...)`.
-  - `--fase descargar --items='[ ... ]' --fecha-ini=... --fecha-fin=...`: itera ítems y llama `descargar_item_especifico(...)` tras `establecer_contexto_busqueda(...)`.
-- Nota: La versión actual no persiste `resultados` automáticamente en JSON en la fase `buscar`; se devuelve a quien invoca.
+- Bloque `__main__` permite ejecutar:
+  - `--fase buscar --fecha-ini=YYYY-MM-DD --fecha-fin=YYYY-MM-DD` → establece contexto y llama `fase_buscar(...)`.
+  - `--fase descargar --items='[ ... ]' --fecha-ini=... --fecha-fin=...` → itera ítems y llama `fase_descargar(...)` tras `establecer_contexto_busqueda(...)`.
+- Nota: Los resultados de “buscar” se devuelven al invocador; no se guardan automáticamente a JSON.
 
 4) Dependencias y requisitos
 

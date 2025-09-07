@@ -1,4 +1,4 @@
-﻿## Análisis del Archivo: `session_cliente.py` (06/09/2025)
+## Análisis del Archivo: `session_cliente.py` (06/09/2025)
 
 1) Propósito
 
@@ -16,3 +16,4 @@
 
 - Requiere que el servidor haya publicado una cookie vigente recientemente.
 - Maneja errores mostrando MessageBox al usuario.
+

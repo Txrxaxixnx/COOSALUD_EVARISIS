@@ -1,8 +1,8 @@
-﻿## Análisis del Archivo: `tray_app.py` (06/09/2025)
+## Análisis del Archivo: `tray_app.py` (06/09/2025)
 
 1) Propósito
 
-- Crear un ícono de bandeja del sistema (pystray) para ejecutar la lógica del Servidor en un hilo, mantenerlo activo y permitir salida limpia (“Salir” cierra el driver y la app de bandeja).
+- Crear un ícono de bandeja del sistema (pystray) para ejecutar la lógica del Servidor en un hilo, mantenerlo activo y permitir salida limpia ("Salir" cierra el driver y la app de bandeja).
 
 2) Flujo
 
@@ -13,3 +13,4 @@
 3) Integración
 
 - Invocado por `main_gui.py --run-server` como proceso separado. Coopera con `.sync_success.flag` creado por `selenium_session_manager` para que la GUI confirme el éxito inicial.
+

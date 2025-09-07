@@ -1,8 +1,8 @@
-﻿## Análisis del Archivo: `calendario.py` (06/09/2025)
+## Análisis del Archivo: `calendario.py` (06/09/2025)
 
 1) Propósito
 
-- Widget de calendario modal, estilizado con ttkbootstrap, para seleccionar fechas con soporte de locales (Babel) y festivos por país (holidays). Permite resaltar días con “estado” y mostrar tooltips con “detalle”.
+- Widget de calendario modal, estilizado con ttkbootstrap, para seleccionar fechas con soporte de locales (Babel) y festivos por país (holidays). Permite resaltar días con "estado" y mostrar tooltips con "detalle".
 
 2) API y uso
 
@@ -16,7 +16,7 @@
 - Importación de `tooltip` compatible con múltiples versiones de ttkbootstrap (usa `tooltip.ToolTip` si el import devuelve un módulo).
 - Carga perezosa de festivos por año (holidays), fusionados con `mapa_de_datos` del usuario.
 - Construcción de UI: header (mes/año, navegación), fila de nombres de día (localizada), grilla 6x7 de días, footer con Confirmar/Cancelar.
-- `_actualizar_vista_calendario`: setea texto, estado y estilo de cada día; asigna tooltip si hay `detalle`; maneja “hoy” y “seleccionado”.
+- `_actualizar_vista_calendario`: setea texto, estado y estilo de cada día; asigna tooltip si hay `detalle`; maneja "hoy" y "seleccionado".
 
 4) Dependencias
 
@@ -38,3 +38,4 @@ fecha = CalendarioInteligente.seleccionar_fecha(
 6) Estado
 
 - Funcional y estable. Maneja edge cases de tooltips y compatibilidad de import.
+

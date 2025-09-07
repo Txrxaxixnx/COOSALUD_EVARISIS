@@ -53,7 +53,7 @@ Uso: Glosas
 - Se listan resultados con paginación. Controles disponibles:
   - Cambiar “entradas” (20/50/100/500/Todos), navegar Anterior/Siguiente.
   - Botón “Iniciar Automatización” para descargar en cadena N registros visibles.
-- Salida de descargas: carpeta de usuario Descargas/Glosas_Coosalud.
+- Salida de descargas: carpeta de usuario `Descargas/Glosas_Coosalud`.
 - Organización automática: se crea “Reporte de Glosas YYYY-MM-DD” y se mueven allí los archivos nuevos.
 - Consolidación y reportes:
   - Consolidado con todas las columnas detectadas, archivo “CONSOLIDADO_DETALLE_GLOSAS_<ini>_a_<fin>.xlsx”.
@@ -64,3 +64,17 @@ Notas y seguridad
 - Las credenciales de login web del servidor están en `server_logic/selenium_session_manager.py`. Se recomienda moverlas a configuración segura.
 - La cookie se publica en Notion; asegure el acceso a la página y al token.
 - Los módulos usan rutas relativas a `--base-path` o al directorio de la app empaquetada.
+
+Seguridad recomendada
+
+- No versiones secretos reales. Usa `config.example.ini` como plantilla:
+
+```
+[Notion]
+ApiKey = <token_integracion_notion>
+PageId = <page_id_registro_usuarios>
+NOTION_SESSION_PAGE_ID = <page_id_cookie_sesion>
+```
+
+- Copia la plantilla a `config.ini` localmente y rellena tus valores.
+

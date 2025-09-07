@@ -437,6 +437,46 @@ def descargar_item_especifico(driver, item, download_dir, last_processed_id=None
             print(f"  -> No se pudo navegar de vuelta. Error de navegación: {nav_error}")
             
         return None
+
+
+def fase_descargar(driver, items, base_path, fecha_ini, fecha_fin, download_dir):
+    """
+    Establece el contexto de búsqueda por fechas y procesa una lista de items
+    para descargar sus archivos asociados (detalle y/o glosas).
+
+    Parámetros:
+    - driver: instancia de Selenium ya autenticada (cookie inyectada).
+    - items: lista de dicts con llaves al menos {'id', 'factura'} y opcionales
+             banderas booleanas {'detalle': True/False, 'glosa': True/False}.
+    - base_path: ruta base (no usada directamente aquí, se mantiene por firma estable).
+    - fecha_ini, fecha_fin: strings YYYY-MM-DD para el filtro inicial.
+    - download_dir: carpeta de descargas configurada en setup_driver (puede ser None).
+
+    Devuelve:
+    - None. Registra el progreso por consola.
+    """
+    if not download_dir:
+        print("[Descarga] Advertencia: 'download_dir' no fue provisto; se usará configuración del navegador.")
+
+    print("\n[Fase Descargar] Preparando contexto de búsqueda...")
+    establecer_contexto_busqueda(driver, fecha_ini, fecha_fin)
+
+    print(f"[Fase Descargar] Iniciando procesamiento de {len(items)} item(s)...")
+    last_processed_id = None
+    procesados = 0
+    for idx, item in enumerate(items, start=1):
+        try:
+            print(f"[Fase Descargar] ({idx}/{len(items)}) -> ID: {item.get('id')} Factura: {item.get('factura')}")
+            last_processed_id = descargar_item_especifico(driver, item, download_dir, last_processed_id)
+            if last_processed_id:
+                procesados += 1
+        except KeyboardInterrupt:
+            print("[Fase Descargar] Interrumpido por el usuario.")
+            break
+        except Exception as e:
+            print(f"[Fase Descargar] Error al procesar item {item}: {e}")
+
+    print(f"[Fase Descargar] Finalizado. Items procesados exitosamente: {procesados}/{len(items)}")
     
 if __name__ == "__main__":
     # Este bloque es ahora el ÚNICO punto de entrada para la ejecución 
