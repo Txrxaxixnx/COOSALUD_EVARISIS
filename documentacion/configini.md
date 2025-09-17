@@ -1,4 +1,4 @@
-## Análisis del Archivo: `config.ini` (06/09/2025)
+## Análisis del Archivo: `config.ini` (16/09/2025)
 
 1) Propósito
 
@@ -18,7 +18,7 @@ PageId = <page_id_para_registro_usuarios>
 - `main_gui.py`: lee `ApiKey` y `NOTION_SESSION_PAGE_ID` para monitorear estado de sesión; usa rutas relativas al `base_path`.
 - `glosas_downloader.py`: lee `ApiKey` y `NOTION_SESSION_PAGE_ID` para obtener la cookie antes de automatizar.
 - `session_cliente.py`: lee la cookie desde Notion con las mismas claves.
-- `server_logic/selenium_session_manager.py`: lee `ApiKey` y `NOTION_SESSION_PAGE_ID` para publicar la cookie capturada; puede usar `PageId` para otros registros.
+- `selenium_session_manager.py`: lee `ApiKey` y `NOTION_SESSION_PAGE_ID` para publicar la cookie capturada (incluye el nombre del operador en Notion).
 - `notion_control_interno.py`: usa `ApiKey` y `PageId` para registrar usos diarios por usuario.
 
 4) Recomendaciones

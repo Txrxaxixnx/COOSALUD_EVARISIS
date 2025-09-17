@@ -1,5 +1,6 @@
 ### Actualización (sept 2025)
 
+- La cabecera y el menú lateral integran los datos del operador (nombre, cargo) y una foto opcional tomada de `--foto`; se muestra en el header y en el panel de estado.
 - Glosas ahora está integrado en la propia GUI: ya no se crea `glosas_results.json` ni se lanza un subproceso para buscar. Se importa `glosas_downloader` y se usa su API desde hilos para mantener la UI fluida.
 - Se añadieron paginación (entradas/Anterior/Siguiente) y un botón “Iniciar Automatización” para descargar en cadena lo visible, organizar descargas, consolidar y generar informe ejecutivo.
 
@@ -14,6 +15,7 @@
 - `get_base_path()`: Resuelve rutas tanto en script como empaquetado (PyInstaller), priorizando `_MEIPASS` y `_internal`.
 - `CoosaludApp(ttk.Window)`:
   - Estado de sesión: `comprobar_estado_servidor()` consulta Notion y decide “Activa/Expirada/Inactiva”. `_actualizar_ui_estado()` habilita/deshabilita botones.
+  - Identidad visual: `self.current_user` almacena nombre/cargo y `_cargar_foto_usuario()` genera versiones para cabecera (60x60) y barra lateral (48x48). Si hay imagen se muestra junto al estado del servidor.
   - Paneles: bienvenida, dashboard y configuración (con consola de logs `scrolledtext`).
   - Glosas (integrado):
     - `iniciar_proceso_glosas()` → pide rango de fechas con `CalendarioInteligente`.
@@ -28,8 +30,9 @@
 
 3) Despachador (CLI)
 
-- `--run-server`: llama `tray_app.main(base_path)` para lanzar el servidor (ícono de bandeja + Selenium headless).
+- `--run-server`: llama `tray_app.main(base_path, args.usuario)` para lanzar el servidor (ícono de bandeja + Selenium headless) y propaga el nombre del operador hacia Notion.
 - `--run-client`: llama `session_cliente.run_client_logic(base_path)` para abrir Chrome visible con cookie inyectada.
+- En modo GUI, `--nombre`, `--cargo`, `--foto` y `--tema` personalizan la cabecera y tema visual; `--foto` es opcional (si se omite, se muestra únicamente el nombre/cargo).
 - Sin banderas: Modo GUI. Requiere `--lanzado-por-evarisis` por seguridad.
 
 4) Dependencias

@@ -9,7 +9,7 @@
 
 2) Mapa de módulos
 
-- `main_gui.py`: ventana y orquestación; estado de sesión (Notion); flujo de Glosas (búsqueda, paginación, descargas, consolidación, informe ejecutivo); cierre ordenado.
+- `main_gui.py`: ventana y orquestación; estado de sesión (Notion); cabecera con nombre/cargo y foto opcional del operador; flujo de Glosas (búsqueda, paginación, descargas, consolidación, informe ejecutivo); cierre ordenado.
 - `glosas_downloader.py`: API Selenium reusable: `get_session_cookie`, `setup_driver`, `fase_buscar`, `extraer_datos_tabla_actual`, `navegar_pagina`, `cambiar_numero_entradas`, `establecer_contexto_busqueda`, `descargar_item_especifico`, `fase_descargar` (CLI).
 - `tray_app.py`: app de bandeja que ejecuta la lógica de servidor en un hilo y mantiene vivo el proceso hasta finalizar o salir.
 - `selenium_session_manager.py`: login headless, sincronización con Notion (incluye el nombre de quien activó el servidor), señal `.sync_success.flag`, bucle de refresco.
@@ -19,13 +19,13 @@
 
 3) Flujo de datos clave
 
-- Cookie PHPSESSID: capturada por el servidor → publicada en Notion con timestamp (LastUpdate) → consumida por cliente/automatizaciones → la GUI monitorea su vigencia por timestamp.
+- Cookie PHPSESSID: capturada por el servidor → publicada en Notion con timestamp (LastUpdate) y el nombre del operador → consumida por cliente/automatizaciones → la GUI monitorea su vigencia por timestamp.
 - Descargas de Glosas: archivos .xls/.xlsx en `~/Downloads/Glosas_Coosalud` → se organizan en carpeta "Reporte de Glosas YYYY-MM-DD" → consolidado y reporte Excel generados en esa carpeta.
 
 4) Modos de ejecución
 
-- GUI (seguro): `python main_gui.py --lanzado-por-evarisis [--nombre ... --cargo ... --tema ...]`
-- Servidor: `python main_gui.py --run-server --base-path=...` (lanza `tray_app.main`).
+- GUI (seguro): `python main_gui.py --lanzado-por-evarisis [--nombre ... --cargo ... --tema ... --foto ...]`
+- Servidor: `python main_gui.py --run-server --base-path=... --usuario=Operador` (lanza `tray_app.main`).
 - Cliente: `python main_gui.py --run-client --base-path=...` (lanza `session_cliente.run_client_logic`).
 - Glosas (CLI): `python glosas_downloader.py --fase [buscar|descargar] --fecha-ini ... --fecha-fin ... [--items JSON]`.
 
@@ -38,6 +38,7 @@
 6) Estado actual (16/09/2025)
 
 - Glosas integrado en `main_gui.py` usando `glosas_downloader` como librería: búsqueda, paginación (entradas/Anterior/Siguiente), descargas en cadena, organización de archivos, consolidación e Informe Ejecutivo con KPIs y gráficos.
+- La cabecera de la GUI muestra nombre, cargo y foto opcional del operador; el nombre se reutiliza para etiquetar la cookie en Notion.
 - Servidor estable: login headless, sincronización en Notion, señal `.sync_success.flag`, refresco periódico.
 - Cliente estable: apertura de Chrome visible con cookie inyectada.
 - Registro de uso Notion operativo.
