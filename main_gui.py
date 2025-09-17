@@ -59,6 +59,7 @@ class CoosaludApp(ttk.Window):
         self.glosas_thread_lock = threading.Lock()
         self.last_processed_glosa_id = None
         self.resultados_actuales = []
+        self.db_viewer_window = None
         self.current_user = {"nombre": nombre_usuario, "cargo": cargo_usuario}
         self.foto_usuario = self._cargar_foto_usuario(foto_path)
         self.title("EVARISIS GESTOR COOSALUD")
@@ -288,12 +289,147 @@ class CoosaludApp(ttk.Window):
     
     # <<<----------- NUEVA FUNCIÓN AÑADIDA AQUÍ -----------<<<
     def _visualizar_base_de_datos(self):
-        """Muestra un mensaje temporal para la visualización de la BD."""
-        Messagebox.show_info(
-            title="En Construcción",
-            message="La funcionalidad para visualizar y gestionar la base de datos se implementará aquí.",
-            parent=self
+        """Abre una ventana con el contenido de glosas_coosalud.db."""
+        if not db_manager:
+            Messagebox.show_error("Error de Módulo", "El módulo 'db_manager.py' no se pudo cargar.", parent=self)
+            return
+
+        db_path = os.path.join(self.base_path, db_manager.DB_FILENAME)
+        if not os.path.exists(db_path):
+            Messagebox.show_warning(
+                "Base de datos no encontrada",
+                f"No se encontró el archivo {db_manager.DB_FILENAME}.",
+            )
+            return
+
+        if self.db_viewer_window and self.db_viewer_window.winfo_exists():
+            self.db_viewer_window.focus()
+            self.db_viewer_window.lift()
+            return
+
+        conn = None
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cuentas_rows = conn.execute(
+                "SELECT id_cuenta, radicacion, fecha_rad, factura, valor_factura, valor_glosado "
+                "FROM cuentas ORDER BY fecha_rad DESC, factura DESC"
+            ).fetchall()
+            glosas_rows = conn.execute(
+                "SELECT factura, id_item, descripcion_item, tipo, descripcion, valor_glosado_item, "
+                "usuario, fecha_glosa, estado FROM glosas_detalle "
+                "ORDER BY fecha_glosa DESC, factura DESC"
+            ).fetchall()
+            cuentas = [dict(row) for row in cuentas_rows]
+            glosas = [dict(row) for row in glosas_rows]
+        except sqlite3.Error as e:
+            Messagebox.show_error(
+                f"No se pudo consultar la base de datos.\n\n{e}",
+                "Error al leer la base de datos",
+                parent=self
+            )
+            return
+        finally:
+            if conn:
+                conn.close()
+
+        self.db_viewer_window = tk.Toplevel(self)
+        self.db_viewer_window.title("Registros guardados en glosas_coosalud.db")
+        self.db_viewer_window.geometry("1020x640")
+        self.db_viewer_window.transient(self)
+
+        def _on_close():
+            if self.db_viewer_window:
+                self.db_viewer_window.destroy()
+                self.db_viewer_window = None
+
+        self.db_viewer_window.protocol("WM_DELETE_WINDOW", _on_close)
+
+        def _handle_destroy(event):
+            if self.db_viewer_window and event.widget == self.db_viewer_window:
+                self.db_viewer_window = None
+
+        self.db_viewer_window.bind("<Destroy>", _handle_destroy)
+
+        container = ttk.Frame(self.db_viewer_window, padding=15)
+        container.pack(fill=tk.BOTH, expand=True)
+
+        notebook = ttk.Notebook(container)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        width_map = {
+            "id_cuenta": 150,
+            "radicacion": 140,
+            "fecha_rad": 110,
+            "factura": 120,
+            "valor_factura": 140,
+            "valor_glosado": 140,
+            "descripcion_item": 260,
+            "tipo": 120,
+            "descripcion": 260,
+            "valor_glosado_item": 150,
+            "usuario": 120,
+            "fecha_glosa": 150,
+            "estado": 120,
+        }
+
+        max_rows = 800
+
+        def _crear_tab(titulo, columnas, datos):
+            marco = ttk.Frame(notebook, padding=10)
+            notebook.add(marco, text=titulo)
+            marco.grid_rowconfigure(1, weight=1)
+            marco.grid_columnconfigure(0, weight=1)
+
+            total = len(datos)
+            datos_mostrados = datos[:max_rows]
+            ttk.Label(
+                marco,
+                text=f"Mostrando {len(datos_mostrados)} de {total} registros",
+                anchor="w"
+            ).grid(row=0, column=0, sticky="ew", pady=(0, 8))
+
+            tree = ttk.Treeview(marco, columns=columnas, show="headings")
+            vsb = ttk.Scrollbar(marco, orient=tk.VERTICAL, command=tree.yview)
+            hsb = ttk.Scrollbar(marco, orient=tk.HORIZONTAL, command=tree.xview)
+            tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+            tree.grid(row=1, column=0, sticky="nsew")
+            vsb.grid(row=1, column=1, sticky="ns")
+            hsb.grid(row=2, column=0, sticky="ew")
+
+            for col in columnas:
+                cabecera = col.replace("_", " ").title()
+                tree.heading(col, text=cabecera)
+                tree.column(col, width=width_map.get(col, 120), anchor=tk.W)
+
+            for fila in datos_mostrados:
+                valores = ["" if fila.get(col) is None else str(fila.get(col)) for col in columnas]
+                tree.insert("", tk.END, values=valores)
+
+        _crear_tab(
+            "Cuentas",
+            ["id_cuenta", "radicacion", "fecha_rad", "factura", "valor_factura", "valor_glosado"],
+            cuentas
         )
+
+        _crear_tab(
+            "Detalle de glosas",
+            [
+                "factura",
+                "id_item",
+                "descripcion_item",
+                "tipo",
+                "descripcion",
+                "valor_glosado_item",
+                "usuario",
+                "fecha_glosa",
+                "estado"
+            ],
+            glosas
+        )
+
+        notebook.enable_traversal()
+        self.db_viewer_window.focus()
 
     def _seleccionar_fecha_db_ini(self):
         fecha = CalendarioInteligente.seleccionar_fecha(parent=self, titulo="Seleccione la FECHA DE INICIO")

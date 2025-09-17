@@ -79,3 +79,8 @@ NOTION_SESSION_PAGE_ID = <page_id_cookie_sesion>
 
 - Copia la plantilla a `config.ini` localmente y rellena tus valores.
 
+Actualización: Bases de datos (sept 2025)
+
+- Nueva pestaña "Bases de datos" en la GUI. Permite mapear las glosas del portal, elegir cuántas descargar y persistir cada factura en la base SQLite `glosas_coosalud.db`.
+- `db_manager.py` inicializa la base, verifica la carpeta `Documents/Glosas_Coosalud_EVARISIS`, reestablece el contexto de búsqueda antes de cada descarga y guarda datos en las tablas `cuentas` y `glosas_detalle`.
+- La consola muestra el avance y habilita acciones posteriores (botón "Visualizar Base de Datos" en construcción). Los Excel originales se conservan como respaldo en la misma carpeta.

@@ -46,3 +46,8 @@
 - Chrome y Chromedriver deben existir en `chrome-win64/` dentro de la ruta base.
 - La automatizaciÃ³n usa hilos para no bloquear la UI; se usa `glosas_thread_lock` para serializar tareas.
 
+### Bases de datos (sept 2025)
+
+- Se añadió un panel dedicado que reutiliza el driver Selenium activo para mapear todas las facturas de un rango, pedir la cantidad a procesar y delegar en `db_manager.procesar_cuentas_en_lote`.
+- Nuevas utilidades: `_tarea_buscar_para_db` (mapeo en hilo), `_preguntar_y_lanzar_procesamiento_db` (diálogo interactivo), `_preparar_ui_para_carga_db` y `_actualizar_progreso_db` (feedback en árbol y barra), `_tarea_procesamiento_lote_db` (descarga + persistencia) y `_finalizar_carga_db`.
+- El flujo genera descargas en `Documents/Glosas_Coosalud_EVARISIS`, conserva los archivos y vuelca la información normalizada a `glosas_coosalud.db`. Todos los logs se reflejan en la consola integrada.

@@ -54,3 +54,8 @@
 
 - Ver documentos por mÃ³dulo en esta carpeta para API detallada y notas especÃ­ficas.
 
+### Actualización Bases de Datos (sept 2025)
+
+- Se incorporó `db_manager.py` como capa de persistencia: reutiliza el driver de `glosas_downloader`, forza el restablecimiento del filtro y guarda los resultados en SQLite (`glosas_coosalud.db`).
+- El flujo "Bases de datos" de la GUI controla el mapeo, pregunta cuántas facturas descargar y delega el procesamiento por lotes al módulo.
+- Las descargas se consolidan en `Documents/Glosas_Coosalud_EVARISIS` y se conservan; la base queda disponible para análisis internos o futuras vistas de consulta.

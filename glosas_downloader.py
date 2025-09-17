@@ -9,9 +9,10 @@ import configparser
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
 from selenium.webdriver.support.ui import Select
 
 def get_session_cookie(base_path):
@@ -208,7 +209,15 @@ def fase_buscar(driver, fecha_ini, fecha_fin, base_path):
     fecha_fin_element = driver.find_element(By.ID, "fechaFin")
     driver.execute_script("arguments[0].value = arguments[1]", fecha_fin_element, fecha_fin)
     
-    driver.find_element(By.ID, "btBolsaSearchRespuesta").click()
+    boton_consultar = wait.until(EC.element_to_be_clickable((By.ID, "btBolsaSearchRespuesta")))
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", boton_consultar)
+    driver.execute_script("window.scrollBy(0, -150);")
+    time.sleep(0.5)
+    try:
+        boton_consultar.click()
+    except ElementClickInterceptedException:
+        print("[Contexto] Advertencia: click interceptado, intentando con JavaScript...")
+        driver.execute_script("arguments[0].click();", boton_consultar)
     print("Botón 'Consultar' presionado.")
 
     # Paso 3: Esperar a que la tabla se recargue (Esto ya está perfecto)
@@ -319,7 +328,15 @@ def establecer_contexto_busqueda(driver, fecha_ini, fecha_fin):
     fecha_fin_element = driver.find_element(By.ID, "fechaFin")
     driver.execute_script("arguments[0].value = arguments[1]", fecha_fin_element, fecha_fin)
     
-    driver.find_element(By.ID, "btBolsaSearchRespuesta").click()
+    boton_consultar = wait.until(EC.element_to_be_clickable((By.ID, "btBolsaSearchRespuesta")))
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", boton_consultar)
+    driver.execute_script("window.scrollBy(0, -150);")
+    time.sleep(0.5)
+    try:
+        boton_consultar.click()
+    except ElementClickInterceptedException:
+        print("[Contexto] Advertencia: click interceptado, intentando con JavaScript...")
+        driver.execute_script("arguments[0].click();", boton_consultar)
     print("[Contexto] Botón 'Consultar' presionado.")
     
     cargando_selector = (By.XPATH, "//td[@class='dataTables_empty' and text()='Cargando...']")
@@ -335,18 +352,27 @@ def descargar_item_especifico(driver, item, download_dir, last_processed_id=None
     item_id = item['id']
     item_factura = item['factura']
     print(f"\n[Descarga] Procesando Factura: {item_factura} (ID: {item_id})")
-    wait = WebDriverWait(driver, 10) # Reducimos el wait general a 10s para agilidad
+    wait = WebDriverWait(driver, 20)  # Espera base para interacciones con la tabla
 
     try:
         # --- Búsqueda y clic en 'Play' ---
         search_box_selector = (By.CSS_SELECTOR, "div#tablaRespuestaGlosa_filter input[type='search']")
-        search_box = wait.until(EC.presence_of_element_located(search_box_selector))
+        search_box = wait.until(EC.element_to_be_clickable(search_box_selector))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", search_box)
-        time.sleep(1)
-        search_box.clear()
+        time.sleep(0.5)
+        search_box.click()
+        search_box.send_keys(Keys.CONTROL, 'a')
+        search_box.send_keys(Keys.DELETE)
         search_box.send_keys(item_factura)
-        time.sleep(5) 
+        processing_selector = (By.ID, "tablaRespuestaGlosa_processing")
+        try:
+            WebDriverWait(driver, 30).until(EC.invisibility_of_element_located(processing_selector))
+        except TimeoutException:
+            pass
         play_button_xpath = f"//button[@idcuenta='{item_id}']"
+        row_selector = (By.XPATH, f"//button[@idcuenta='{item_id}']/ancestor::tr")
+        row_element = wait.until(EC.visibility_of_element_located(row_selector))
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row_element)
         play_button = wait.until(EC.element_to_be_clickable((By.XPATH, play_button_xpath)))
         play_button.click()
         
@@ -438,9 +464,11 @@ def descargar_item_especifico(driver, item, download_dir, last_processed_id=None
         
         # --- Lógica de reseteo ---
         wait.until(EC.presence_of_element_located((By.ID, "tablaRespuestaGlosa_wrapper")))
-        search_box_reset = wait.until(EC.presence_of_element_located(search_box_selector))
-        search_box_reset.clear()
-        time.sleep(2)
+        search_box_reset = wait.until(EC.element_to_be_clickable(search_box_selector))
+        search_box_reset.click()
+        search_box_reset.send_keys(Keys.CONTROL, 'a')
+        search_box_reset.send_keys(Keys.DELETE)
+        time.sleep(1)
 
         return item_id 
         

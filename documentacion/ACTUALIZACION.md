@@ -6,3 +6,4 @@
 - Se añadieron utilidades para organizar las descargas en una carpeta por fecha, consolidar todos los Excel descargados y generar un “Informe Ejecutivo” con KPIs, gráficos y verificación de calidad de datos.
 - Los análisis de `main_gui.md` y `glosas_downloader.md` han sido actualizados para reflejar estos cambios. El análisis global sigue siendo válido en la arquitectura; tenga en cuenta esta actualización al leerlo.
 
+- [17/09/2025] Se habilit� el flujo "Bases de datos": nueva pesta�a en la GUI, uso de `db_manager.py` para persistir glosas en SQLite (`glosas_coosalud.db`) y reutilizaci�n del driver Selenium existente.
