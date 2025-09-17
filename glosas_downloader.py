@@ -51,7 +51,8 @@ def setup_driver(base_path, for_download=False):
     download_dir = None
     if for_download:
         # Definimos la ruta de descargas
-        download_dir = os.path.join(os.path.expanduser("~"), "Downloads", "Glosas_Coosalud")
+        user_documents = os.path.join(os.path.expanduser("~"), "Documents")
+        download_dir = os.path.join(user_documents, "Glosas_Coosalud_EVARISIS")
         os.makedirs(download_dir, exist_ok=True)
         print(f"[Downloader] Los archivos se guardarán en: {download_dir}")
         prefs = {
@@ -65,7 +66,6 @@ def setup_driver(base_path, for_download=False):
     # Devolvemos el driver Y la ruta de descargas (o None si no es para descargar)
     return webdriver.Chrome(service=service, options=options), download_dir
 
-## MODIFICADO: Esta es la única función que necesitas cambiar.
 def wait_for_new_file_to_download(download_dir, timeout=60):
     """
     Espera a que un NUEVO archivo aparezca y termine de descargarse.
@@ -238,20 +238,30 @@ def scroll_to_pagination(driver):
     except NoSuchElementException:
         print("Advertencia: No se encontró el panel de paginación para hacer scroll.")
 
-def extraer_datos_tabla_actual(driver):
+def extraer_datos_tabla_actual(driver, progress_callback=None):
     """
     Función reutilizable que extrae datos y paginación de la tabla visible.
+    Ahora acepta un 'progress_callback' para informar del progreso en tiempo real.
     """
     resultados = []
     try:
-        num_filas = len(driver.find_elements(By.XPATH, "//table[@id='tablaRespuestaGlosa']/tbody/tr"))
-        print(f"Extrayendo datos de {num_filas} filas en la página actual.")
+        filas = driver.find_elements(By.XPATH, "//table[@id='tablaRespuestaGlosa']/tbody/tr")
+        num_filas_total = len(filas)
         
-        for i in range(1, num_filas + 1):
-            base_xpath = f"//table[@id='tablaRespuestaGlosa']/tbody/tr[{i}]"
+        # Informamos a la UI el total de filas que vamos a procesar
+        if progress_callback:
+            progress_callback(0, num_filas_total, None) # Envío inicial para configurar la barra
+
+        print(f"Extrayendo datos de {num_filas_total} filas en la página actual.")
+        
+        for i, fila in enumerate(filas):
+            base_xpath = f"//table[@id='tablaRespuestaGlosa']/tbody/tr[{i+1}]"
             
-            row_text_check = driver.find_element(By.XPATH, base_xpath).text
+            row_text_check = fila.text
             if not row_text_check or "ningún dato disponible" in row_text_check.lower():
+                # Si es una fila vacía, igual notificamos para que la barra avance
+                if progress_callback:
+                    progress_callback(i + 1, num_filas_total, None)
                 continue
 
             radicacion = driver.find_element(By.XPATH, f"{base_xpath}/td[2]").text
@@ -261,14 +271,20 @@ def extraer_datos_tabla_actual(driver):
             valor_glosado = driver.find_element(By.XPATH, f"{base_xpath}/td[8]").text
             id_cuenta = driver.find_element(By.XPATH, f"{base_xpath}/td[9]/button").get_attribute("idcuenta")
 
-            resultados.append({
+            resultado_fila = {
                 "id": id_cuenta,
                 "radicacion": radicacion,
                 "fecha_rad": fecha_rad,
                 "factura": factura,
                 "valor_factura": valor_factura,
                 "valor_glosado": valor_glosado,
-            })
+            }
+            resultados.append(resultado_fila)
+            
+            # Usamos al "mensajero" para enviarle la fila recién leída a la UI
+            if progress_callback:
+                progress_callback(i + 1, num_filas_total, resultado_fila)
+    
     except Exception as e:
         print(f"Error al extraer datos de la tabla: {e}")
         resultados = []

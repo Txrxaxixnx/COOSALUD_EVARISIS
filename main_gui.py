@@ -20,7 +20,7 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.chart import LineChart, BarChart, Reference
 from openpyxl.utils.dataframe import dataframe_to_rows
 import unicodedata
-
+import sqlite3
 from ttkbootstrap.dialogs import Messagebox
 import json
 
@@ -28,11 +28,13 @@ try:
     import notion_control_interno
     import glosas_downloader
     from calendario import CalendarioInteligente
+    import db_manager
 except ImportError as e:
     print(f"Error de importación: {e}")
     notion_control_interno = None
     glosas_downloader = None
     CalendarioInteligente = None
+    db_manager = None
 
 def get_base_path():
     """
@@ -76,7 +78,7 @@ class CoosaludApp(ttk.Window):
             self.chrome_driver_path = os.path.join(self.base_path, "chrome-win64", "chromedriver.exe")
             self.chrome_binary_path = os.path.join(self.base_path, "chrome-win64", "chrome.exe")
         except (KeyError, configparser.Error) as e:
-            messagebox.showerror("Error de Configuración", f"No se pudo leer 'config.ini' o falta una clave.\nDetalles: {e}")
+            messagebox.show_error("Error de Configuración", f"No se pudo leer 'config.ini' o falta una clave.\nDetalles: {e}")
             self.destroy()
             return        
         self.image_path = os.path.join(self.base_path, "imagenes")
@@ -192,8 +194,8 @@ class CoosaludApp(ttk.Window):
         ttk.Separator(sidebar_frame, orient=HORIZONTAL).pack(fill=X, pady=15)
         ttk.Button(sidebar_frame, text="  Dashboard", style='Sidebar.TButton', command=lambda: self.mostrar_panel("dashboard")).pack(fill=X, pady=5, ipady=10)
         ttk.Button(sidebar_frame, text="  Configuración", style='Sidebar.TButton', command=lambda: self.mostrar_panel("configuracion")).pack(fill=X, pady=5, ipady=10)
-    
-    
+        ttk.Button(sidebar_frame, text="  Bases de datos", style='Sidebar.TButton', command=lambda: self.mostrar_panel("bases_de_datos")).pack(fill=X, pady=5, ipady=10)
+       
     def _crear_panel_principal(self):
         self.main_panel = ttk.Frame(self, padding=(20,20,20,0))
         self.main_panel.grid(row=1, column=1, sticky="nsew")
@@ -204,8 +206,17 @@ class CoosaludApp(ttk.Window):
         self.paneles["bienvenida"] = self._crear_panel_bienvenida()
         self.paneles["dashboard"] = self._crear_panel_dashboard()
         self.paneles["configuracion"] = self._crear_panel_configuracion()
-        
+        self.paneles["bases_de_datos"] = self._crear_panel_bases_de_datos()
+
         self.mostrar_panel("bienvenida")
+
+    def _accion_bases_de_datos(self):
+        """Muestra un mensaje temporal para la sección de Bases de Datos."""
+        Messagebox.show_info(
+            title="En Construcción",
+            message="Esta sección se encuentra actualmente en desarrollo.",
+            parent=self
+        )
 
     def _crear_panel_bienvenida(self):
         panel = ttk.Frame(self.main_panel)
@@ -235,6 +246,285 @@ class CoosaludApp(ttk.Window):
         self.console_text.pack(fill="both", expand=True)
         
         return panel
+
+    def _crear_panel_bases_de_datos(self):
+        panel = ttk.Frame(self.main_panel)
+        panel.grid_rowconfigure(2, weight=1)
+        panel.grid_columnconfigure(0, weight=1)
+
+        controles_frame = ttk.Frame(panel)
+        controles_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        
+        ttk.Label(controles_frame, text="Fecha Inicial:", font="-size 10").pack(side=LEFT, padx=(0, 5))
+        self.db_fecha_ini_var = tk.StringVar(value="No seleccionada")
+        ttk.Label(controles_frame, textvariable=self.db_fecha_ini_var, bootstyle="info", padding=5).pack(side=LEFT, padx=(0, 5))
+        ttk.Button(controles_frame, text="Seleccionar...", command=self._seleccionar_fecha_db_ini, bootstyle="secondary-outline").pack(side=LEFT, padx=(0, 20))
+
+        ttk.Label(controles_frame, text="Fecha Final:", font="-size 10").pack(side=LEFT, padx=(0, 5))
+        self.db_fecha_fin_var = tk.StringVar(value="No seleccionada")
+        ttk.Label(controles_frame, textvariable=self.db_fecha_fin_var, bootstyle="info", padding=5).pack(side=LEFT, padx=(0, 5))
+        ttk.Button(controles_frame, text="Seleccionar...", command=self._seleccionar_fecha_db_fin, bootstyle="secondary-outline").pack(side=LEFT, padx=(0, 20))
+
+        self.btn_db_buscar = ttk.Button(controles_frame, text="Buscar y Cargar en BD", command=self.iniciar_proceso_db, state="disabled")
+        self.btn_db_buscar.pack(side=LEFT, padx=10, ipady=4)
+
+        # <<<----------- NUEVO BOTÓN AÑADIDO Y CONFIGURADO AQUÍ -----------<<<
+        self.btn_db_visualizar = ttk.Button(controles_frame, text="Visualizar Base de Datos", command=self._visualizar_base_de_datos, state="disabled")
+        self.btn_db_visualizar.pack(side=LEFT, padx=10, ipady=4)
+        
+        self.db_progress_frame = ttk.Frame(panel, padding=(0, 5))
+        self.db_progress_frame.grid(row=1, column=0, sticky="ew")
+        
+        self.db_progress_label = ttk.Label(self.db_progress_frame, text="Cargando 0/0...")
+        self.db_progress_label.pack(side=LEFT, padx=(0, 10))
+        
+        self.db_progressbar = ttk.Progressbar(self.db_progress_frame, mode='determinate')
+        self.db_progressbar.pack(side=LEFT, fill=X, expand=True)
+
+        self.db_results_frame = ttk.Frame(panel)
+        self.db_results_frame.grid(row=2, column=0, sticky="nsew")
+
+        return panel
+    
+    # <<<----------- NUEVA FUNCIÓN AÑADIDA AQUÍ -----------<<<
+    def _visualizar_base_de_datos(self):
+        """Muestra un mensaje temporal para la visualización de la BD."""
+        Messagebox.show_info(
+            title="En Construcción",
+            message="La funcionalidad para visualizar y gestionar la base de datos se implementará aquí.",
+            parent=self
+        )
+
+    def _seleccionar_fecha_db_ini(self):
+        fecha = CalendarioInteligente.seleccionar_fecha(parent=self, titulo="Seleccione la FECHA DE INICIO")
+        if fecha:
+            self.fecha_ini_db = fecha
+            self.db_fecha_ini_var.set(fecha.strftime("%d/%m/%Y"))
+            self._validar_fechas_db()
+
+    def _seleccionar_fecha_db_fin(self):
+        fecha_inicial = getattr(self, 'fecha_ini_db', None)
+        fecha = CalendarioInteligente.seleccionar_fecha(parent=self, titulo="Seleccione la FECHA DE FIN", fecha_inicial=fecha_inicial)
+        if fecha:
+            self.fecha_fin_db = fecha
+            self.db_fecha_fin_var.set(fecha.strftime("%d/%m/%Y"))
+            self._validar_fechas_db()
+            
+    def _validar_fechas_db(self):
+        if hasattr(self, 'fecha_ini_db') and hasattr(self, 'fecha_fin_db'):
+            if self.fecha_fin_db < self.fecha_ini_db:
+                Messagebox.show_error("La fecha de fin no puede ser anterior a la fecha de inicio.", "Error de Fechas", parent=self)
+                self.btn_db_buscar.config(state="disabled")
+            else:
+                self.btn_db_buscar.config(state="normal")
+        else:
+            self.btn_db_buscar.config(state="disabled")
+
+    def iniciar_proceso_db(self):
+        if not db_manager:
+            Messagebox.show_error("Error de Módulo", "El módulo 'db_manager.py' no se pudo cargar.", parent=self)
+            return
+
+        fecha_ini_str = self.fecha_ini_db.strftime("%Y-%m-%d")
+        fecha_fin_str = self.fecha_fin_db.strftime("%Y-%m-%d")
+
+        self._log_to_console(f"\n[BD] Iniciando búsqueda para base de datos entre {fecha_ini_str} y {fecha_fin_str}...")
+        
+        threading.Thread(
+            target=self._tarea_buscar_para_db, 
+            args=(fecha_ini_str, fecha_fin_str), 
+            daemon=True
+        ).start()
+
+
+# En main_gui.py, reemplace la función completa _tarea_buscar_para_db
+
+    def _tarea_buscar_para_db(self, fecha_ini, fecha_fin):
+        if not self.glosas_thread_lock.acquire(blocking=False):
+            self.after(0, lambda: Messagebox.show_warning("Ya hay otra tarea en ejecución. Por favor, espere.", "Tarea en Progreso"))
+            return
+
+        try:
+            self.after(0, lambda: self.btn_db_buscar.config(state="disabled"))
+            self.after(0, lambda: self.btn_db_visualizar.config(state="disabled"))
+
+            if not self._iniciar_navegador_glosas_si_no_existe():
+                self.glosas_thread_lock.release()
+                return
+            
+            self.after(0, self._preparar_ui_para_carga_db)
+            
+            from glosas_downloader import establecer_contexto_busqueda, extraer_datos_tabla_actual, cambiar_numero_entradas
+            
+            def progress_callback(actual, total, data_fila):
+                self.after(0, self._actualizar_progreso_db, actual, total, data_fila)
+
+            self.after(0, lambda: self._log_to_console("[BD] Obteniendo la lista completa de facturas del portal..."))
+            establecer_contexto_busqueda(self.driver_glosas, fecha_ini, fecha_fin)
+            cambiar_numero_entradas(self.driver_glosas, "-1")
+            
+            cuentas_a_procesar, _ = extraer_datos_tabla_actual(self.driver_glosas, progress_callback)
+            
+            total_encontradas = len(cuentas_a_procesar)
+            self.after(0, lambda: self._log_to_console(f"[BD] Mapeo finalizado. Se encontraron {total_encontradas} facturas."))
+
+            if not cuentas_a_procesar:
+                self.after(0, lambda: self._log_to_console("[BD] No hay facturas para procesar."))
+                self.after(0, self._finalizar_carga_db)
+                # No liberamos el lock aquí, se libera en el finally
+                return
+
+            # <<<----------- CORRECCIÓN IMPORTANTE AQUÍ -----------<<<
+            # Movemos la lógica de la pregunta a una función separada que se ejecuta después
+            # de que el mapeo haya terminado, para no bloquear el hilo de la UI.
+            self.after(100, self._preguntar_y_lanzar_procesamiento_db, cuentas_a_procesar, fecha_ini, fecha_fin)
+
+        except Exception as e:
+            self.after(0, self._log_to_console, f"❌ [BD] Error en la tarea principal de BD: {e}")
+            self.after(0, self._finalizar_carga_db)
+            if self.glosas_thread_lock.locked():
+                self.glosas_thread_lock.release()
+        # El finally se quita de aquí y se pone en la nueva función que realmente termina el proceso.
+        
+    # <<<----------- NUEVA FUNCIÓN PARA GESTIONAR EL FLUJO CORRECTAMENTE -----------<<<
+    def _preguntar_y_lanzar_procesamiento_db(self, cuentas_a_procesar, fecha_ini, fecha_fin):
+        """
+        Esta función se ejecuta en el hilo principal de la UI, pregunta al usuario
+        y luego lanza el proceso pesado en un nuevo hilo.
+        """
+        total_encontradas = len(cuentas_a_procesar)
+
+        cantidad_str = simpledialog.askstring(
+            "Confirmar Cantidad a Procesar",
+            f"Se encontraron {total_encontradas} facturas en total.\n\n"
+            f"¿Cuántas desea descargar y guardar en la base de datos?\n"
+            f"(Escriba un número o la palabra 'todas')",
+            parent=self
+        )
+
+        if not cantidad_str:
+            self._log_to_console("[BD] Proceso cancelado por el usuario.")
+            self._finalizar_carga_db()
+            self.glosas_thread_lock.release()
+            return
+
+        try:
+            cantidad_str = cantidad_str.strip().lower()
+            if cantidad_str == 'todas':
+                cantidad_a_procesar = total_encontradas
+            else:
+                cantidad_a_procesar = int(cantidad_str)
+                if not (0 < cantidad_a_procesar <= total_encontradas):
+                    Messagebox.show_error("Cantidad Inválida", f"Por favor, ingrese un número entre 1 y {total_encontradas}.", parent=self)
+                    self._finalizar_carga_db()
+                    self.glosas_thread_lock.release()
+                    return
+        except ValueError:
+            Messagebox.show_error("Entrada Inválida", "Por favor, ingrese un número válido o la palabra 'todas'.", parent=self)
+            self._finalizar_carga_db()
+            self.glosas_thread_lock.release()
+            return
+
+        cuentas_finales = cuentas_a_procesar[:cantidad_a_procesar]
+        
+        # Ahora que tenemos la cantidad, lanzamos el proceso de descarga en un nuevo hilo
+        threading.Thread(
+            target=self._tarea_procesamiento_lote_db,
+            args=(cuentas_finales, fecha_ini, fecha_fin),
+            daemon=True
+        ).start()
+
+    def _tarea_procesamiento_lote_db(self, cuentas_finales, fecha_ini, fecha_fin):
+        """Esta es la tarea pesada que corre en su propio hilo."""
+        try:
+            self.after(0, lambda: self._log_to_console(f"\n[BD] Confirmado. Se procesarán {len(cuentas_finales)} facturas."))
+            self.after(0, lambda: self._log_to_console("[BD] Iniciando descarga y guardado en base de datos..."))
+            
+            def log_desde_hilo(mensaje):
+                self.after(0, self._log_to_console, mensaje)
+
+            proceso_exitoso = db_manager.procesar_cuentas_en_lote(
+                self.driver_glosas, cuentas_finales, self.base_path, 
+                log_desde_hilo, fecha_ini, fecha_fin, self.download_dir_glosas
+            )
+
+            if proceso_exitoso:
+                self.after(0, lambda: self.btn_db_visualizar.config(state="normal"))
+                self.after(0, lambda: Messagebox.show_info("Proceso Completado", f"Se han procesado y guardado {len(cuentas_finales)} facturas.", parent=self))
+            else:
+                self.after(0, lambda: Messagebox.show_error("Proceso Interrumpido", "Error durante el procesamiento.", parent=self))
+            
+            self.after(0, self._finalizar_carga_db)
+        
+        except Exception as e:
+            self.after(0, self._log_to_console(f"❌ Error en la tarea de procesamiento en lote: {e}"))
+            self.after(0, self._finalizar_carga_db)
+        finally:
+            if self.glosas_thread_lock.locked():
+                self.glosas_thread_lock.release()
+            self.after(0, self._log_to_console, "[BD] Bloqueo liberado.")
+
+
+    # <<<----------- Y AÑADIMOS ESTAS TRES NUEVAS FUNCIONES DE AYUDA -----------<<<
+    def _preparar_ui_para_carga_db(self):
+        """Limpia la tabla y muestra la barra de progreso."""
+        for widget in self.db_results_frame.winfo_children():
+            widget.destroy()
+            
+        self.db_progress_frame.grid(row=1, column=0, sticky="ew")
+        
+        cols = ["radicacion", "fecha_rad", "factura", "valor_factura", "valor_glosado"]
+        self.db_tree = ttk.Treeview(self.db_results_frame, columns=cols, show='headings')
+        self.db_tree.heading("radicacion", text="N° Radicación")
+        self.db_tree.heading("fecha_rad", text="Fecha Rad.")
+        self.db_tree.heading("factura", text="N° Factura")
+        self.db_tree.heading("valor_factura", text="Valor Factura")
+        self.db_tree.heading("valor_glosado", text="Valor Glosado")
+        self.db_tree.pack(fill="both", expand=True)
+
+    def _actualizar_progreso_db(self, actual, total, data_fila):
+        """Actualiza la barra, el contador y añade una fila a la tabla."""
+        if total > 0:
+            self.db_progressbar['maximum'] = total
+            self.db_progressbar['value'] = actual
+            self.db_progress_label.config(text=f"Mapeando {actual}/{total}...")
+        
+        # Si nos pasaron datos de una fila, la añadimos a la tabla en tiempo real
+        if data_fila:
+            self.db_tree.insert("", "end", values=(
+                data_fila['radicacion'], data_fila['fecha_rad'], data_fila['factura'],
+                data_fila['valor_factura'], data_fila['valor_glosado']
+            ))
+
+    def _finalizar_carga_db(self):
+        """Oculta la barra de progreso y reactiva el botón de búsqueda."""
+        self.db_progress_frame.grid_forget()
+        self.btn_db_buscar.config(state="normal")
+
+
+    def _mostrar_resultados_db(self, resultados):
+        # Limpiamos el frame de resultados por si había una búsqueda anterior
+        for widget in self.db_results_frame.winfo_children():
+            widget.destroy()
+        
+        if not resultados:
+            ttk.Label(self.db_results_frame, text="No se encontraron resultados para el rango seleccionado.").pack(pady=20)
+            return
+
+        # Creamos la tabla (Treeview) para mostrar los resultados
+        cols = ["radicacion", "fecha_rad", "factura", "valor_factura", "valor_glosado"]
+        tree = ttk.Treeview(self.db_results_frame, columns=cols, show='headings')
+        
+        tree.heading("radicacion", text="N° Radicación")
+        tree.heading("fecha_rad", text="Fecha Rad.")
+        tree.heading("factura", text="N° Factura")
+        tree.heading("valor_factura", text="Valor Factura")
+        tree.heading("valor_glosado", text="Valor Glosado")
+        
+        for res in resultados:
+            tree.insert("", "end", values=(res['radicacion'], res['fecha_rad'], res['factura'], res['valor_factura'], res['valor_glosado']))
+        
+        tree.pack(fill="both", expand=True)
 
     def _crear_panel_dashboard(self):
         panel = ttk.Frame(self.main_panel)
@@ -398,7 +688,7 @@ class CoosaludApp(ttk.Window):
     def ejecutar_control_interno(self):
         if not notion_control_interno:
             self._log_to_console("❌ ERROR: El módulo 'notion_control_interno.py' no se encontró.")
-            messagebox.showerror("Error Crítico", "No se encontró el módulo de control interno.")
+            messagebox.show_error("Error Crítico", "No se encontró el módulo de control interno.")
             return
         self._log_to_console("[1/2] Iniciando control interno...")
         threading.Thread(target=self._tarea_control_interno, daemon=True).start()
@@ -413,7 +703,7 @@ class CoosaludApp(ttk.Window):
             self._log_to_console("✅ Control interno concretado.")
         else:
             self._log_to_console("❌ La fase de control interno falló.")
-            messagebox.showerror("Error de Control", "No se pudo registrar el uso de la herramienta.")
+            messagebox.show_error("Error de Control", "No se pudo registrar el uso de la herramienta.")
 
     def iniciar_servidor(self):
         self.btn_iniciar_servidor.config(state="disabled")
@@ -517,7 +807,7 @@ class CoosaludApp(ttk.Window):
 
     def iniciar_proceso_glosas(self):
         if not CalendarioInteligente:
-            messagebox.showerror("Error de Módulo", "El módulo 'calendario.py' no se pudo cargar.")
+            messagebox.show_error("Error de Módulo", "El módulo 'calendario.py' no se pudo cargar.")
             return
 
         self._log_to_console("\n[Glosas] Solicitando fecha de inicio...")
@@ -898,11 +1188,11 @@ class CoosaludApp(ttk.Window):
                 try:
                     cantidad_a_descargar = int(cantidad_str)
                     if not (0 < cantidad_a_descargar <= total_en_tabla):
-                        Messagebox.showerror("Cantidad Inválida", f"Por favor, ingrese un número entre 1 y {total_en_tabla}.", parent=self)
+                        Messagebox.show_error("Cantidad Inválida", f"Por favor, ingrese un número entre 1 y {total_en_tabla}.", parent=self)
                         self.glosas_thread_lock.release()
                         return
                 except ValueError:
-                    Messagebox.showerror("Entrada Inválida", "Por favor, ingrese un número válido o la palabra 'todas'.", parent=self)
+                    Messagebox.show_error("Entrada Inválida", "Por favor, ingrese un número válido o la palabra 'todas'.", parent=self)
                     self.glosas_thread_lock.release()
                     return
 
@@ -1104,7 +1394,7 @@ class CoosaludApp(ttk.Window):
 
         except Exception as e:
             self.after(0, self._log_to_console, f"❌ [Automatización] Error durante la descarga en cadena: {e}")
-            self.after(0, lambda: Messagebox.showerror("Error en Automatización", f"Ocurrió un error durante el proceso:\n\n{e}", parent=self))
+            self.after(0, lambda: Messagebox.show_error("Error en Automatización", f"Ocurrió un error durante el proceso:\n\n{e}", parent=self))
         finally:
             self.glosas_thread_lock.release()
             self._log_to_console("[Automatización] Proceso terminado y bloqueo liberado.")
