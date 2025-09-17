@@ -6,8 +6,7 @@ import sys
 import argparse
 import os
 
-# Importamos la lógica del servidor que ya tenemos
-from server_logic import selenium_session_manager
+import selenium_session_manager
 
 # Variable global para controlar el hilo de Selenium
 selenium_thread = None
@@ -29,13 +28,12 @@ def create_image():
         fill=color2)
     return image
 
-def run_selenium_logic(base_path, icon):
+def run_selenium_logic(base_path, username, icon):
     """Función que se ejecutará en un hilo para manejar Selenium."""
     global selenium_driver
-    print("[Tray] Hilo de Selenium iniciado.")
-    # Modificaremos selenium_session_manager para que nos devuelva el driver
+    print(f"[Tray] Hilo de Selenium iniciado por el usuario: {username}.")
     try:
-        selenium_driver = selenium_session_manager.capture_sync_and_refresh_session(base_path)
+        selenium_driver = selenium_session_manager.capture_sync_and_refresh_session(base_path, username)
     except Exception as e:
         print(f"[Tray] El proceso de Selenium falló: {e}")
     
@@ -55,7 +53,7 @@ def on_quit(icon, item):
             print(f"Error al intentar cerrar el driver: {e}")
     icon.stop()
 
-def main(base_path):
+def main(base_path, username):
     """Función principal que crea y ejecuta el ícono de la bandeja."""
     global selenium_thread
     
@@ -63,11 +61,9 @@ def main(base_path):
     menu = pystray.Menu(pystray.MenuItem('Salir', on_quit))
     icon = pystray.Icon("EVARISIS_Server", image, "Servidor de Coosalud EVARISIS (Activo)", menu)
     
-    # Iniciar la lógica de Selenium en un hilo separado
-    selenium_thread = threading.Thread(target=run_selenium_logic, args=(base_path, icon), daemon=True)
+    selenium_thread = threading.Thread(target=run_selenium_logic, args=(base_path, username, icon), daemon=True)
     selenium_thread.start()
     
-    # Ejecutar el ícono (esto bloquea el hilo principal hasta que se llama a icon.stop())
     icon.run()
     
     print("[Tray] Aplicación de bandeja finalizada.")
@@ -76,5 +72,6 @@ def main(base_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-path", required=True)
+    parser.add_argument("--usuario", required=True, help="Nombre del usuario que inicia el servidor.")
     args = parser.parse_args()
-    main(args.base_path)
+    main(args.base_path, args.usuario)

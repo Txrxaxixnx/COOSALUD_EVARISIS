@@ -2,22 +2,22 @@
 
 Resumen
 
-- Gestor de automatización para EVARISIS/Coosalud con GUI moderna (ttkbootstrap), que orquesta dos roles: Servidor (mantiene sesión) y Cliente (usa sesión). Sincroniza la cookie de sesión PHPSESSID en Notion para compartirla entre procesos. Incluye un flujo para búsqueda, descarga y consolidación de glosas con generación de informe ejecutivo en Excel.
+- Gestor de automatización para EVARISIS/Coosalud con GUI moderna (ttkbootstrap), que orquesta dos roles: Servidor (mantiene sesión) y Cliente (usa sesión). Sincroniza la cookie de sesión PHPSESSID en Notion para compartirla entre procesos. Incluye un flujo para búsqueda, descarga y consolidación de glosas con generación de informe ejecutivo en Excel. Además, la GUI identifica en cabecera quién abrió la sesión (nombre, cargo y foto opcional) y etiqueta la cookie compartida en Notion con esa persona.
 
 Arquitectura
 
-- Servidor: `tray_app.py` lanza `server_logic/selenium_session_manager.py` en Chrome headless para iniciar sesión, capturar la cookie `PHPSESSID`, publicarla en Notion y refrescar la sesión periódicamente. Señaliza éxito con `.sync_success.flag`.
+- Servidor: `tray_app.py` lanza `selenium_session_manager.py` (ahora en la raíz) en Chrome headless para iniciar sesión, capturar la cookie `PHPSESSID`, publicarla en Notion con el usuario que activó el servidor y refrescar la sesión periódicamente. Señaliza éxito con `.sync_success.flag`.
 - Cliente: `session_cliente.py` abre Chrome visible e inyecta la cookie leída desde Notion para entrar sin credenciales.
 - GUI: `main_gui.py` muestra estado de sesión, lanza servidor/cliente y ejecuta la automatización de glosas en el mismo proceso (usa funciones de `glosas_downloader.py`), incluyendo paginación y descargas.
-- Notion: almacena la cookie activa y registra usos del usuario (`notion_control_interno.py`).
+- Notion: almacena la cookie activa, anota quién lanzó el servidor y registra usos diarios (`notion_control_interno.py`).
 
 Estructura de carpetas (principal)
 
 - `main_gui.py`: Ventana principal, estado, orquestación y flujos de glosas (búsqueda, paginación, descarga, consolidado, informe).
 - `glosas_downloader.py`: Funciones Selenium reutilizables para buscar, paginar y descargar glosas. También se puede invocar por CLI en fases `buscar`/`descargar`.
 - `session_cliente.py`: Abre navegador con cookie inyectada desde Notion (rol Cliente).
-- `tray_app.py`: Ícono de bandeja que corre la lógica de servidor y mantiene activo Selenium (rol Servidor).
-- `server_logic/selenium_session_manager.py`: Login, captura de cookie, sincronización con Notion y refresco periódico.
+- `tray_app.py`: Ícono de bandeja que corre la lógica de servidor, pasa el nombre del operador y mantiene activo Selenium (rol Servidor).
+- `selenium_session_manager.py`: Login headless, sincronización con Notion (incluye el nombre de quien lanzó el servidor) y refresco periódico.
 - `notion_control_interno.py`: Registro de uso diario por usuario en Notion.
 - `calendario.py`: Selector de fecha con locales y festivos.
 - `ANALISIS ACTUAL/`: Documentación técnica por archivo y análisis global.
@@ -40,9 +40,10 @@ Ejecución
 
 - Normalmente se lanza desde el dashboard de Evarisis. Para pruebas locales:
   - GUI (requiere bandera de seguridad):
-    - `python main_gui.py --lanzado-por-evarisis --nombre="Usuario" --cargo="Cargo" --tema=litera`
+    - `python main_gui.py --lanzado-por-evarisis --nombre="Usuario" --cargo="Cargo" --tema=litera --foto="C:/ruta/foto.jpg"`
+    - Omite `--foto` si no cuentas con una imagen; la cabecera mostrará solo nombre y cargo.
   - Servidor (mantener sesión en background):
-    - `python main_gui.py --run-server --base-path="%CD%"`
+    - `python main_gui.py --run-server --base-path="%CD%" --usuario="Nombre del operador"`
   - Cliente (abrir navegador con sesión):
     - `python main_gui.py --run-client --base-path="%CD%"`
 
@@ -61,7 +62,7 @@ Uso: Glosas
 
 Notas y seguridad
 
-- Las credenciales de login web del servidor están en `server_logic/selenium_session_manager.py`. Se recomienda moverlas a configuración segura.
+- Las credenciales de login web del servidor están en `selenium_session_manager.py`. Se recomienda moverlas a configuración segura.
 - La cookie se publica en Notion; asegure el acceso a la página y al token.
 - Los módulos usan rutas relativas a `--base-path` o al directorio de la app empaquetada.
 

@@ -1,4 +1,4 @@
-## Análisis Global y Estado del Proyecto (06/09/2025)
+## Análisis Global y Estado del Proyecto (16/09/2025)
 
 1) Arquitectura general
 
@@ -12,7 +12,7 @@
 - `main_gui.py`: ventana y orquestación; estado de sesión (Notion); flujo de Glosas (búsqueda, paginación, descargas, consolidación, informe ejecutivo); cierre ordenado.
 - `glosas_downloader.py`: API Selenium reusable: `get_session_cookie`, `setup_driver`, `fase_buscar`, `extraer_datos_tabla_actual`, `navegar_pagina`, `cambiar_numero_entradas`, `establecer_contexto_busqueda`, `descargar_item_especifico`, `fase_descargar` (CLI).
 - `tray_app.py`: app de bandeja que ejecuta la lógica de servidor en un hilo y mantiene vivo el proceso hasta finalizar o salir.
-- `server_logic/selenium_session_manager.py`: login headless, captura de cookie, sincronización con Notion, señal `.sync_success.flag`, bucle de refresco.
+- `selenium_session_manager.py`: login headless, sincronización con Notion (incluye el nombre de quien activó el servidor), señal `.sync_success.flag`, bucle de refresco.
 - `session_cliente.py`: abre Chrome visible e inyecta cookie para sesión manual del usuario.
 - `notion_control_interno.py`: registra usos diarios por usuario en Notion.
 - `calendario.py`: selector de fechas con festivos y locales.
@@ -35,7 +35,7 @@
 - `config.ini` con `[Notion] ApiKey`, `NOTION_SESSION_PAGE_ID`, `PageId`.
 - Librerías: `ttkbootstrap`, `selenium`, `requests`, `Pillow`, `pystray`, `pandas`, `openpyxl`, `Babel`, `holidays`, `xlrd` (para .xls).
 
-6) Estado actual (06/09/2025)
+6) Estado actual (16/09/2025)
 
 - Glosas integrado en `main_gui.py` usando `glosas_downloader` como librería: búsqueda, paginación (entradas/Anterior/Siguiente), descargas en cadena, organización de archivos, consolidación e Informe Ejecutivo con KPIs y gráficos.
 - Servidor estable: login headless, sincronización en Notion, señal `.sync_success.flag`, refresco periódico.

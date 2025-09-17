@@ -13,10 +13,10 @@ import requests
 import time
 import pandas as pd
 import glob
-import re # Importamos re para expresiones regulares
-import shutil # <--- AÑADE ESTA LÍNEA SI NO ESTÁ
+import re
+import shutil
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, NamedStyle, numbers
+from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.chart import LineChart, BarChart, Reference
 from openpyxl.utils.dataframe import dataframe_to_rows
 import unicodedata
@@ -24,7 +24,6 @@ import unicodedata
 from ttkbootstrap.dialogs import Messagebox
 import json
 
-# Importamos la lógica que acabamos de separar
 try:
     import notion_control_interno
     import glosas_downloader
@@ -52,55 +51,43 @@ def get_base_path():
 class CoosaludApp(ttk.Window):
     def __init__(self, nombre_usuario, cargo_usuario, foto_path, tema):
         super().__init__(themename=tema)
-
         self.server_process = None
-
         self.driver_glosas = None
         self.download_dir_glosas = None
         self.glosas_thread_lock = threading.Lock()
         self.last_processed_glosa_id = None
         self.resultados_actuales = []
-
         self.current_user = {"nombre": nombre_usuario, "cargo": cargo_usuario}
         self.foto_usuario = self._cargar_foto_usuario(foto_path)
-
         self.title("EVARISIS GESTOR COOSALUD")
         self.state('zoomed')
         self.base_path = get_base_path()
-
         try:
             icon_path = os.path.join(self.base_path, "gestorcoosalud.ico")
             self.iconbitmap(icon_path)
         except Exception as e:
             print(f"Advertencia: No se pudo cargar el ícono de la aplicación: {e}")
-
         try:
             import configparser
             config = configparser.ConfigParser()
-            config.read(os.path.join(self.base_path, 'config.ini'))
-            
+            config.read(os.path.join(self.base_path, 'config.ini'))            
             self.NOTION_API_KEY = config['Notion']['ApiKey']
-            self.NOTION_SESSION_PAGE_ID = config['Notion']['NOTION_SESSION_PAGE_ID']
-            
+            self.NOTION_SESSION_PAGE_ID = config['Notion']['NOTION_SESSION_PAGE_ID']            
             self.chrome_driver_path = os.path.join(self.base_path, "chrome-win64", "chromedriver.exe")
             self.chrome_binary_path = os.path.join(self.base_path, "chrome-win64", "chrome.exe")
-
         except (KeyError, configparser.Error) as e:
             messagebox.showerror("Error de Configuración", f"No se pudo leer 'config.ini' o falta una clave.\nDetalles: {e}")
             self.destroy()
-            return
-        
+            return        
         self.image_path = os.path.join(self.base_path, "imagenes")
         self.COLOR_AZUL_HUV = "#005A9C"
         self.logos = self._cargar_logos()
         self._configurar_estilos()
         self._crear_widgets()
-
         self.after(500, self.comprobar_estado_servidor)
         self.after(1000, self.ejecutar_control_interno)
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-    # ... (Las funciones _cargar_logos, _cargar_foto_usuario, _configurar_estilos, _crear_cabecera, _crear_menu_lateral no cambian)
     def _cargar_logos(self):
         logos = {}
         logos_a_cargar = {
@@ -119,8 +106,12 @@ class CoosaludApp(ttk.Window):
     def _cargar_foto_usuario(self, foto_path):
         if foto_path and foto_path != "SIN_FOTO" and os.path.exists(foto_path):
             try:
-                img = Image.open(foto_path).resize((60, 60), Image.Resampling.LANCZOS)
-                return ImageTk.PhotoImage(img)
+                img_header = Image.open(foto_path).resize((60, 60), Image.Resampling.LANCZOS)
+                img_sidebar = Image.open(foto_path).resize((48, 48), Image.Resampling.LANCZOS)
+                return {
+                    "header": ImageTk.PhotoImage(img_header),
+                    "sidebar": ImageTk.PhotoImage(img_sidebar)
+                }
             except Exception as e:
                 print(f"Error al cargar foto de usuario: {e}")
         return None
@@ -141,39 +132,67 @@ class CoosaludApp(ttk.Window):
     
     def _crear_cabecera(self):
         header_frame = ttk.Frame(self, padding=(20, 10), style='primary.TFrame')
-        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
-        
+        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew")        
         if self.logos.get("huv"): 
-            ttk.Label(header_frame, image=self.logos["huv"], style='primary.TLabel').pack(side=LEFT, padx=(0, 15))
-        
-        ttk.Label(header_frame, text="EVARISIS GESTOR COOSALUD", style='Header.TLabel', background=self.style.colors.primary).pack(side=LEFT, expand=True)
-        
+            ttk.Label(header_frame, image=self.logos["huv"], style='primary.TLabel').pack(side=LEFT, padx=(0, 15))        
+        ttk.Label(header_frame, text="EVARISIS GESTOR COOSALUD", style='Header.TLabel', background=self.style.colors.primary).pack(side=LEFT, expand=True)        
         if self.foto_usuario:
-            ttk.Label(header_frame, image=self.foto_usuario, style='primary.TLabel').pack(side=RIGHT, padx=10)
-
+            ttk.Label(header_frame, image=self.foto_usuario["header"], style='primary.TLabel').pack(side=RIGHT, padx=10)
         profile_info_frame = ttk.Frame(header_frame, style='primary.TFrame')
         profile_info_frame.pack(side=RIGHT, padx=(0, 10))
-
         ttk.Label(profile_info_frame, text=self.current_user["nombre"], font=('Segoe UI', 12, "bold"), anchor=E, style='primary.TLabel').pack(fill=X)
         ttk.Label(profile_info_frame, text=self.current_user["cargo"], font=('Segoe UI', 9), anchor=E, style='secondary.TLabel').pack(fill=X)
 
     def _crear_menu_lateral(self):
+        # MODIFICADO: Reestructuramos el menú lateral para la nueva info
         sidebar_frame = ttk.Frame(self, padding=20, width=250)
         sidebar_frame.grid(row=1, column=0, sticky="ns")
         sidebar_frame.grid_propagate(False)
+        
+        # --- Frame de estado general ---
+        frame_estado = ttk.Frame(sidebar_frame)
+        frame_estado.pack(fill=X, pady=(0, 15))
+        self.lbl_estado_servidor = ttk.Label(frame_estado, text=" ⚪ Comprobando...", bootstyle="secondary", font=('Segoe UI', 11, 'bold'), padding=10)
+        self.lbl_estado_servidor.pack(fill=X)
 
-        self.lbl_estado_servidor = ttk.Label(sidebar_frame, text=" ⚪ Comprobando...", bootstyle="secondary")
-        self.lbl_estado_servidor.configure(style='Status.TLabel')
-        self.lbl_estado_servidor.pack(fill=X, pady=(0, 30))
+        # --- NUEVO: Frame de Información del Servidor ---
+        self.info_servidor_frame = ttk.Labelframe(sidebar_frame, text="Información del Servidor", padding=10)
+        self.info_servidor_frame.pack(fill=X, pady=(0, 20))
+        
+        # Contenedor para la foto y el texto
+        info_content_frame = ttk.Frame(self.info_servidor_frame)
+        info_content_frame.pack(fill=X)
 
+        # Widget para la foto
+        self.lbl_foto_servidor = ttk.Label(info_content_frame)
+        if self.foto_usuario:
+            self.lbl_foto_servidor.config(image=self.foto_usuario["sidebar"])
+        self.lbl_foto_servidor.pack(side=LEFT, padx=(0, 10))
+        
+        # Contenedor para los labels de texto
+        info_text_frame = ttk.Frame(info_content_frame)
+        info_text_frame.pack(side=LEFT, fill=X, expand=True)
+        
+        self.lbl_usuario_servidor = ttk.Label(info_text_frame, text="Iniciado por: N/A", font=('Segoe UI', 9, 'bold'))
+        self.lbl_usuario_servidor.pack(fill=X, anchor='w')
+        self.lbl_update_servidor = ttk.Label(info_text_frame, text="Últ. Act: --:--:--", font=('Segoe UI', 8))
+        self.lbl_update_servidor.pack(fill=X, anchor='w')
+
+        # Ocultamos el frame al inicio
+        self.info_servidor_frame.pack_forget()
+
+        # --- Botones de acción ---
         self.btn_iniciar_sesion_cliente = ttk.Button(sidebar_frame, text="  Iniciar Sesión Cliente", style='Sidebar.TButton', command=self.iniciar_sesion_cliente)
         self.btn_iniciar_sesion_cliente.pack(fill=X, pady=5, ipady=10)
         
         self.btn_iniciar_servidor = ttk.Button(sidebar_frame, text="  Iniciar Servidor", style='Sidebar.TButton', command=self.iniciar_servidor, state="disabled")
         self.btn_iniciar_servidor.pack(fill=X, pady=5, ipady=10)
         
+        # --- Botones de navegación ---
+        ttk.Separator(sidebar_frame, orient=HORIZONTAL).pack(fill=X, pady=15)
         ttk.Button(sidebar_frame, text="  Dashboard", style='Sidebar.TButton', command=lambda: self.mostrar_panel("dashboard")).pack(fill=X, pady=5, ipady=10)
         ttk.Button(sidebar_frame, text="  Configuración", style='Sidebar.TButton', command=lambda: self.mostrar_panel("configuracion")).pack(fill=X, pady=5, ipady=10)
+    
     
     def _crear_panel_principal(self):
         self.main_panel = ttk.Frame(self, padding=(20,20,20,0))
@@ -327,35 +346,52 @@ class CoosaludApp(ttk.Window):
             if not texto_bloque:
                 self.after(0, self._actualizar_ui_estado, "danger", "✖ Sesión Inactiva", True)
                 return
-            timestamp_str = texto_bloque.split("| LastUpdate:")[1].strip()
+            
+            parts = [p.strip() for p in texto_bloque.split('|')]
+            timestamp_str = parts[1].replace("LastUpdate:", "").strip()
+            username = parts[2].replace("User:", "").strip() if len(parts) > 2 else "Desconocido"
+
             last_update = datetime.fromisoformat(timestamp_str)
+
             if datetime.now() - last_update > timedelta(minutes=5):
                 bootstyle, texto, habilitar_boton = "warning", "⚠ Sesión Expirada", True
+                # Si expiró, no mostramos la info del usuario
+                self.after(0, self._actualizar_ui_estado, bootstyle, texto, habilitar_boton, None, None)
             else:
                 bootstyle, texto, habilitar_boton = "success", "✔ Sesión Activa", False
-            self.after(0, self._actualizar_ui_estado, bootstyle, texto, habilitar_boton)
+                self.after(0, self._actualizar_ui_estado, bootstyle, texto, habilitar_boton, username, last_update)
+
         except requests.RequestException:
-            self.after(0, self._actualizar_ui_estado, "danger", "✖ Error de Red", True)
-        except (IndexError, ValueError):
-            self.after(0, self._actualizar_ui_estado, "danger", "✖ Bloque Malformado", True)
+            self.after(0, self._actualizar_ui_estado, "danger", "✖ Error de Red", True, None, None)
+        except (IndexError, ValueError) as e:
+            self.after(0, self._log_to_console, f"Error parseando bloque de Notion: {e}")
+            self.after(0, self._actualizar_ui_estado, "danger", "✖ Bloque Malformado", True, None, None)
         finally:
             self.after(60000, self.comprobar_estado_servidor)
             
-    def _actualizar_ui_estado(self, bootstyle, texto, habilitar_boton_servidor):
+    def _actualizar_ui_estado(self, bootstyle, texto, habilitar_boton_servidor, username, update_time):
+        # MODIFICADO: Gestionamos la visibilidad del nuevo panel de información
         self.lbl_estado_servidor.configure(text=texto, bootstyle=bootstyle)
+        self.btn_iniciar_servidor.config(state="normal" if habilitar_boton_servidor else "disabled")
         
-        estado_servidor = "normal" if habilitar_boton_servidor else "disabled"
-        self.btn_iniciar_servidor.config(state=estado_servidor)
-        
-        if not habilitar_boton_servidor:
+        if not habilitar_boton_servidor and username and update_time:
+            # Estado ACTIVO: mostramos toda la info
             self.btn_iniciar_sesion_cliente.config(state="normal")
             self.btn_glosas.config(state="normal")
+            
+            self.info_servidor_frame.pack(fill=X, pady=(0, 20)) # Hacemos visible el frame
+            self.lbl_usuario_servidor.config(text=f"Iniciado por: {username}")
+            self.lbl_update_servidor.config(text=f"Últ. Act: {update_time.strftime('%H:%M:%S')}")
+            
             self.lbl_estado_servidor.config(cursor="hand2")
             self.lbl_estado_servidor.bind("<Button-1>", lambda e: self.iniciar_sesion_cliente())
-            self.lbl_estado_servidor.configure(text="✔ Sesión Activa (Clic aquí para usar)")
+            self.lbl_estado_servidor.configure(text="✔ Sesión Activa (Clic para usar)")
         else:
+            # Estado INACTIVO/EXPIRADO: ocultamos la info detallada
             self.btn_iniciar_sesion_cliente.config(state="disabled")
             self.btn_glosas.config(state="disabled")
+            self.info_servidor_frame.pack_forget() # Ocultamos el frame
+            
             self.lbl_estado_servidor.config(cursor="")
             self.lbl_estado_servidor.unbind("<Button-1>")
 
@@ -390,24 +426,24 @@ class CoosaludApp(ttk.Window):
             env = os.environ.copy()
             env["PYTHONUTF8"] = "1"
 
+            # Obtenemos el nombre de usuario de la instancia de la GUI
+            usuario_actual = self.current_user.get("nombre", "UsuarioDesconocido")
+            
             command = [python_exe]
             if not getattr(sys, 'frozen', False):
                 command.append(sys.argv[0])
             
-            command.extend(["--run-server", f"--base-path={self.base_path}"])
+            command.extend(["--run-server", f"--base-path={self.base_path}", f"--usuario={usuario_actual}"])
             
             flag_file_path = os.path.join(self.base_path, '.sync_success.flag')
-
             if os.path.exists(flag_file_path):
                 os.remove(flag_file_path)
-
             self.after(0, self._log_to_console, "[Anfitrión] Lanzando el gestor de sesión del servidor...")
             self.server_process = subprocess.Popen(
                 command,
                 env=env,
                 creationflags=subprocess.CREATE_NO_WINDOW 
-            )
-            
+            )            
             self.after(0, self._log_to_console, "[Anfitrión] ...esperando señal de sincronización exitosa del servidor...")
             timeout = 45 
             start_time = time.time()
@@ -426,7 +462,6 @@ class CoosaludApp(ttk.Window):
             else:
                 self.after(0, self._log_to_console, "❌ [Anfitrión] Error: El servidor no envió la señal de éxito a tiempo.")
                 self.after(0, lambda: self.btn_iniciar_servidor.config(state="normal"))
-
         except Exception as e:
             error_msg = f"❌ [Anfitrión] Error inesperado al lanzar la secuencia: {e}"
             self.after(0, self._log_to_console, error_msg)
@@ -1707,51 +1742,41 @@ class CoosaludApp(ttk.Window):
 
 # --- PUNTO DE ENTRADA PRINCIPAL ---
 if __name__ == "__main__":
-    # ... (El bloque __main__ no necesita cambios, su lógica de despachador es correcta)
     import multiprocessing
     import sys
     import argparse
     import tkinter as tk
     from tkinter import messagebox
-
     multiprocessing.freeze_support()
-
-    parser = argparse.ArgumentParser(description="Gestor Coosalud para EVARISIS.")
-    
+    parser = argparse.ArgumentParser(description="Gestor Coosalud para EVARISIS.")    
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument("--run-server", action="store_true", help="Ejecuta la lógica del servidor en segundo plano.")
     mode_group.add_argument("--run-client", action="store_true", help="Ejecuta la lógica del cliente en segundo plano.")
-
     parser.add_argument("--base-path", type=str, help="Ruta base necesaria para los modos de servidor/cliente.")
-
+    parser.add_argument("--usuario", default="UsuarioDesconocido", type=str, help="Nombre del usuario para el servidor.")
     parser.add_argument("--lanzado-por-evarisis", action="store_true", help="Bandera de seguridad para el lanzamiento de la GUI.")
     parser.add_argument("--nombre", default="Usuario Invitado", type=str, help="Nombre del usuario.")
     parser.add_argument("--cargo", default="N/A", type=str, help="Cargo del usuario.")
     parser.add_argument("--foto", default="SIN_FOTO", type=str, help="Ruta a la foto del usuario.")
     parser.add_argument("--tema", default="litera", type=str, help="Tema de ttkbootstrap para la GUI.")
     parser.add_argument("--ruta-datos", type=str, help="Ruta a la carpeta de datos central (consistencia).")
-
     args = parser.parse_args()
-
     if args.run_server:
         # Lógica para el servidor (importar y ejecutar tray_app)
         if not args.base_path:
             print("ERROR: El modo --run-server requiere el argumento --base-path.")
             sys.exit(1)
         import tray_app
-        tray_app.main(args.base_path)
+        tray_app.main(args.base_path, args.usuario)
         sys.exit(0)
-
     elif args.run_client:
-        # Lógica para el cliente (importar y ejecutar session_cliente)
         if not args.base_path:
             print("ERROR: El modo --run-client requiere el argumento --base-path.")
             sys.exit(1)
         import session_cliente
         session_cliente.run_client_logic(args.base_path)
-        sys.exit(0)
-    
-    else: # Modo GUI por defecto
+        sys.exit(0)    
+    else:
         if not args.lanzado_por_evarisis:
             root = tk.Tk()
             root.withdraw()
@@ -1761,7 +1786,6 @@ if __name__ == "__main__":
             )
             root.destroy()
             sys.exit(1)
-
         app = CoosaludApp(
             nombre_usuario=args.nombre,
             cargo_usuario=args.cargo,

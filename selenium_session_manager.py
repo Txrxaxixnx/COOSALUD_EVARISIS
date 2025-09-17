@@ -1,4 +1,4 @@
-# selenium_session_manager.py (VERSIÓN CORREGIDA Y FINAL)
+# selenium_session_manager.py
 
 import os
 import sys
@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 import requests
 import configparser
-import argparse # <--- 1. IMPORTACIÓN AÑADIDA
+import argparse
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -21,9 +21,8 @@ LOGIN_URL = 'https://vco.ctamedicas.com'
 REFRESH_INTERVAL_SECONDS = 3 * 60
 TOTAL_DURATION_SECONDS = 5 * 60 * 60
 
-# --- Funciones de Ayuda para Notion (sin cambios, omitidas por brevedad) ---
+# --- Funciones de Ayuda para Notion ---
 def borrar_session_blocks(headers, page_id):
-    # ... (tu código para esta función está bien, no necesita cambios)
     url = f"https://api.notion.com/v1/blocks/{page_id}/children"
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -47,17 +46,18 @@ def borrar_session_blocks(headers, page_id):
         print(f"[Sync] ❌ Error de red al intentar borrar bloques: {e}")
 
 
-def sincronizar_cookie_con_notion(headers, page_id, cookie_value, initial_sync=True):
+def sincronizar_cookie_con_notion(headers, page_id, cookie_value, username, initial_sync=True):
     # ... (tu código para esta función está bien, no necesita cambios)
     log_prefix = "[Sync-Init]" if initial_sync else "[Sync-Update]"
     try:
         if initial_sync:
-            print(f"{log_prefix} Realizando sincronización inicial con Notion...")
+            print(f"{log_prefix} Realizando sincronización inicial con Notion para el usuario: {username}...")
         
         borrar_session_blocks(headers, page_id)
         
         timestamp_actual = datetime.now().isoformat()
-        contenido_bloque = f"Session PHPSESSID: {cookie_value} | LastUpdate: {timestamp_actual}"
+
+        contenido_bloque = f"Session PHPSESSID: {cookie_value} | LastUpdate: {timestamp_actual} | User: {username}"
         
         nuevo_bloque_payload = { "children": [{ "object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": contenido_bloque}}]}}]}
         
@@ -73,17 +73,15 @@ def sincronizar_cookie_con_notion(headers, page_id, cookie_value, initial_sync=T
 
 
 # =========================================================================
-# === FUNCIÓN PRINCIPAL (MODIFICADA) ===
+# === FUNCIÓN PRINCIPAL ===
 # =========================================================================
 
-def capture_sync_and_refresh_session(base_path): # <--- 2. AÑADIDO ARGUMENTO
-    # --- 3. TODAS LAS RUTAS SE BASAN EN `base_path` ---
+def capture_sync_and_refresh_session(base_path, username):
     config_file_path = os.path.join(base_path, 'config.ini')
     chromedriver_path = os.path.join(base_path, 'chrome-win64', 'chromedriver.exe')
     chrome_binary_path = os.path.join(base_path, 'chrome-win64', 'chrome.exe')
     sync_success_flag_path = os.path.join(base_path, '.sync_success.flag')
 
-    # --- Carga de Configuración (modificado para usar la nueva ruta) ---
     try:
         config = configparser.ConfigParser()
         if not config.read(config_file_path):
@@ -93,9 +91,8 @@ def capture_sync_and_refresh_session(base_path): # <--- 2. AÑADIDO ARGUMENTO
         NOTION_HEADERS = {"Authorization": f"Bearer {NOTION_API_KEY}", "Notion-Version": "2022-06-28", "Content-Type": "application/json"}
     except Exception as e:
         print(f"❌ ERROR CRÍTICO: No se pudo leer la configuración de Notion: {e}")
-        raise # Re-lanzamos la excepción para que el llamador sepa del fallo
+        raise
     
-    # --- Configuración de Selenium (modificado para usar las nuevas rutas) ---
     if not os.path.exists(chromedriver_path) or not os.path.exists(chrome_binary_path):
         error_msg = f"❌ ERROR: No se encontró chromedriver.exe o chrome.exe en {os.path.join(base_path, 'chrome-win64')}."
         print(error_msg)
@@ -104,17 +101,14 @@ def capture_sync_and_refresh_session(base_path): # <--- 2. AÑADIDO ARGUMENTO
     service = Service(executable_path=chromedriver_path)
     options = webdriver.ChromeOptions()
     options.binary_location = chrome_binary_path
-    # --- OCULTAR LA VENTANA ---
-    options.add_argument("--headless=new") # 1. El nuevo modo headless que es casi indetectable.
-    options.add_argument("--window-size=1920,1080") # 2. Es buena práctica definir un tamaño de ventana en modo headless.
+    options.add_argument("--headless=new")
+    options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
-    # AÑADIDO: Este argumento puede ayudar a que el proceso se sienta más como de fondo.
     options.add_argument("--disable-extensions") 
     
     driver = None
     try:
-        # --- Fase de Login (sin cambios) ---
         print("✅ [Login] Iniciando Selenium...")
         driver = webdriver.Chrome(service=service, options=options)
         driver.get(LOGIN_URL)
@@ -131,7 +125,7 @@ def capture_sync_and_refresh_session(base_path): # <--- 2. AÑADIDO ARGUMENTO
         print(f"🍪 [Login] Cookie de sesión capturada: ...{cookie_value[-6:]}")
         
         # --- Sincronización INICIAL ---
-        sincronizacion_exitosa = sincronizar_cookie_con_notion(NOTION_HEADERS, NOTION_SESSION_PAGE_ID, cookie_value, initial_sync=True)
+        sincronizacion_exitosa = sincronizar_cookie_con_notion(NOTION_HEADERS, NOTION_SESSION_PAGE_ID, cookie_value, username, initial_sync=True)
         if not sincronizacion_exitosa:
             raise RuntimeError("Fallo crítico: No se pudo sincronizar la sesión inicial con Notion. Abortando.")
 
@@ -155,7 +149,7 @@ def capture_sync_and_refresh_session(base_path): # <--- 2. AÑADIDO ARGUMENTO
             try:
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Refrescando página en Selenium...")
                 driver.refresh()
-                sincronizar_cookie_con_notion(NOTION_HEADERS, NOTION_SESSION_PAGE_ID, cookie_value, initial_sync=False)
+                sincronizar_cookie_con_notion(NOTION_HEADERS, NOTION_SESSION_PAGE_ID, cookie_value, username, initial_sync=False)
             except Exception as loop_error:
                 print(f"ℹ️ [Refresh] Error durante el ciclo de refresco: {loop_error}")
                 break # Salimos del bucle si el navegador se cierra o hay un error
@@ -164,26 +158,23 @@ def capture_sync_and_refresh_session(base_path): # <--- 2. AÑADIDO ARGUMENTO
 
     except Exception as e:
         print(f"\n❌ Ocurrió un error crítico durante la ejecución de Selenium: {e}")
-        # Si hay un error, cerramos el driver antes de que la excepción se propague
         if driver:
             driver.quit()
-        raise  # Re-lanzamos la excepción para que tray_app.py sepa que algo falló
-    # Para cerrar el driver, devolvemos el objeto driver para que sea gestionado externamente.
+        raise  
     print("[Selenium Manager] El bucle de refresco ha terminado. El driver sigue activo.")
     return driver
 
 if __name__ == "__main__":
-    # --- Este bloque ahora es solo para pruebas directas ---
     print("--- MODO DE PRUEBA DIRECTA DE SELENIUM_SESSION_MANAGER ---")
     parser = argparse.ArgumentParser(description="Gestor de sesión de Selenium para Coosalud.")
-    parser.add_argument("--base-path", required=True, help="Ruta base del proyecto para encontrar recursos.")
+    parser.add_argument("--base-path", required=True, help="Ruta base del proyecto.")
+    parser.add_argument("--usuario", required=True, help="Nombre del usuario que inicia el servidor.")
     args = parser.parse_args()
     
     active_driver = None
     try:
-        active_driver = capture_sync_and_refresh_session(args.base_path)
+        active_driver = capture_sync_and_refresh_session(args.base_path, args.usuario)
         print("\n--- PRUEBA FINALIZADA ---")
-        print("El driver permaneció activo hasta el final del script de prueba.")
     except Exception as e:
         print(f"\n--- PRUEBA FALLIDA: {e} ---")
     finally:
