@@ -20,7 +20,7 @@
 3) Flujo de datos clave
 
 - Cookie PHPSESSID: capturada por el servidor → publicada en Notion con timestamp (LastUpdate) y el nombre del operador → consumida por cliente/automatizaciones → la GUI monitorea su vigencia por timestamp.
-- Descargas de Glosas: archivos .xls/.xlsx en `~/Downloads/Glosas_Coosalud` → se organizan en carpeta "Reporte de Glosas YYYY-MM-DD" → consolidado y reporte Excel generados en esa carpeta.
+- Descargas de Glosas: archivos .xls/.xlsx en `~/Documents/Glosas_Coosalud_EVARISIS` → se organizan en carpeta "Reporte de Glosas YYYY-MM-DD" → consolidado y reporte Excel generados en esa carpeta.
 
 4) Modos de ejecución
 
