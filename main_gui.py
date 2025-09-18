@@ -473,54 +473,52 @@ class CoosaludApp(ttk.Window):
         ).start()
 
 
-# En main_gui.py, reemplace la función completa _tarea_buscar_para_db
-
     def _tarea_buscar_para_db(self, fecha_ini, fecha_fin):
-        if not self.glosas_thread_lock.acquire(blocking=False):
-            self.after(0, lambda: Messagebox.show_warning("Ya hay otra tarea en ejecución. Por favor, espere.", "Tarea en Progreso"))
-            return
-
-        try:
-            self.after(0, lambda: self.btn_db_buscar.config(state="disabled"))
-            self.after(0, lambda: self.btn_db_visualizar.config(state="disabled"))
-
-            if not self._iniciar_navegador_glosas_si_no_existe():
-                self.glosas_thread_lock.release()
+            if not self.glosas_thread_lock.acquire(blocking=False):
+                self.after(0, lambda: Messagebox.show_warning("Ya hay otra tarea en ejecución. Por favor, espere.", "Tarea en Progreso"))
                 return
-            
-            self.after(0, self._preparar_ui_para_carga_db)
-            
-            from glosas_downloader import establecer_contexto_busqueda, extraer_datos_tabla_actual, cambiar_numero_entradas
-            
-            def progress_callback(actual, total, data_fila):
-                self.after(0, self._actualizar_progreso_db, actual, total, data_fila)
 
-            self.after(0, lambda: self._log_to_console("[BD] Obteniendo la lista completa de facturas del portal..."))
-            establecer_contexto_busqueda(self.driver_glosas, fecha_ini, fecha_fin)
-            cambiar_numero_entradas(self.driver_glosas, "-1")
-            
-            cuentas_a_procesar, _ = extraer_datos_tabla_actual(self.driver_glosas, progress_callback)
-            
-            total_encontradas = len(cuentas_a_procesar)
-            self.after(0, lambda: self._log_to_console(f"[BD] Mapeo finalizado. Se encontraron {total_encontradas} facturas."))
+            try:
+                self.after(0, lambda: self.btn_db_buscar.config(state="disabled"))
+                self.after(0, lambda: self.btn_db_visualizar.config(state="disabled"))
 
-            if not cuentas_a_procesar:
-                self.after(0, lambda: self._log_to_console("[BD] No hay facturas para procesar."))
+                if not self._iniciar_navegador_glosas_si_no_existe():
+                    self.glosas_thread_lock.release() # Liberar si falla el navegador
+                    return
+                
+                self.after(0, self._preparar_ui_para_carga_db)
+                
+                from glosas_downloader import establecer_contexto_busqueda, extraer_datos_tabla_actual, cambiar_numero_entradas
+                
+                def progress_callback(actual, total, data_fila):
+                    self.after(0, self._actualizar_progreso_db, actual, total, data_fila)
+
+                self.after(0, lambda: self._log_to_console("[BD] Obteniendo la lista completa de facturas del portal..."))
+                establecer_contexto_busqueda(self.driver_glosas, fecha_ini, fecha_fin)
+                cambiar_numero_entradas(self.driver_glosas, "-1")
+                
+                cuentas_a_procesar, _ = extraer_datos_tabla_actual(self.driver_glosas, progress_callback)
+                
+                total_encontradas = len(cuentas_a_procesar)
+                
+                if not cuentas_a_procesar:
+                    self.after(0, lambda: self._log_to_console("[BD] No se encontraron facturas para el rango seleccionado."))
+                    # --- AQUÍ LA CORRECCIÓN ---
+                    self.after(0, self._mostrar_mensaje_db, "No se encontraron facturas para el rango de fechas seleccionado.")
+                    self.after(0, self._finalizar_carga_db)
+                    self.glosas_thread_lock.release() # ¡Se libera el bloqueo!
+                    return
+
+                self.after(0, lambda: self._log_to_console(f"[BD] Mapeo finalizado. Se encontraron {total_encontradas} facturas."))
+                
+                self.after(100, self._preguntar_y_lanzar_procesamiento_db, cuentas_a_procesar, fecha_ini, fecha_fin)
+
+            except Exception as e:
+                self.after(0, self._log_to_console, f"❌ [BD] Error en la tarea principal de BD: {e}")
                 self.after(0, self._finalizar_carga_db)
-                # No liberamos el lock aquí, se libera en el finally
-                return
-
-            # <<<----------- CORRECCIÓN IMPORTANTE AQUÍ -----------<<<
-            # Movemos la lógica de la pregunta a una función separada que se ejecuta después
-            # de que el mapeo haya terminado, para no bloquear el hilo de la UI.
-            self.after(100, self._preguntar_y_lanzar_procesamiento_db, cuentas_a_procesar, fecha_ini, fecha_fin)
-
-        except Exception as e:
-            self.after(0, self._log_to_console, f"❌ [BD] Error en la tarea principal de BD: {e}")
-            self.after(0, self._finalizar_carga_db)
-            if self.glosas_thread_lock.locked():
-                self.glosas_thread_lock.release()
-        # El finally se quita de aquí y se pone en la nueva función que realmente termina el proceso.
+                self.after(0, self._mostrar_mensaje_db, f"Ocurrió un error durante la búsqueda:\n{e}")
+                if self.glosas_thread_lock.locked():
+                    self.glosas_thread_lock.release()
         
     # <<<----------- NUEVA FUNCIÓN PARA GESTIONAR EL FLUJO CORRECTAMENTE -----------<<<
     def _preguntar_y_lanzar_procesamiento_db(self, cuentas_a_procesar, fecha_ini, fecha_fin):
@@ -637,6 +635,19 @@ class CoosaludApp(ttk.Window):
         self.db_progress_frame.grid_forget()
         self.btn_db_buscar.config(state="normal")
 
+
+    def _mostrar_mensaje_db(self, mensaje):
+            """Limpia el frame de resultados y muestra un mensaje centrado."""
+            for widget in self.db_results_frame.winfo_children():
+                widget.destroy()
+
+            self.db_progress_frame.grid_forget()
+
+            container = ttk.Frame(self.db_results_frame)
+            container.pack(fill="both", expand=True)
+            
+            lbl_mensaje = ttk.Label(container, text=mensaje, font=("Segoe UI", 12, "italic"), anchor="center")
+            lbl_mensaje.place(relx=0.5, rely=0.5, anchor="center")
 
     def _mostrar_resultados_db(self, resultados):
         # Limpiamos el frame de resultados por si había una búsqueda anterior
