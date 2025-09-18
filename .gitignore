@@ -53,3 +53,6 @@ Thumbs.db
 #excel/
 #pdfs_patologia/
 ~$*
+
+# 8. base de datos:
+glosas_coosalud.db
